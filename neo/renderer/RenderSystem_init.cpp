@@ -553,7 +553,7 @@ typedef struct vidmode_s {
     int         width, height;
 } vidmode_t;
 
-vidmode_t r_vidModes[] = {
+vidmode_t r_defaultVidModes[] = {
     { "Mode  0: 320x240",		320,	240 },
     { "Mode  1: 400x300",		400,	300 },
     { "Mode  2: 512x384",		512,	384 },
@@ -564,7 +564,10 @@ vidmode_t r_vidModes[] = {
     { "Mode  7: 1280x1024",		1280,	1024 },
     { "Mode  8: 1600x1200",		1600,	1200 },
 };
-static int	s_numVidModes = ( sizeof( r_vidModes ) / sizeof( r_vidModes[0] ) );
+vidmode_t** r_vidModes; 
+static int	s_numVidModes = ( sizeof( r_defaultVidModes ) / sizeof( r_defaultVidModes[0] ) );
+vidmode_t** r_foundVidModes;  // Keep a list of pointers we need to free
+static int s_numFoundVidModes = 0;
 
 #if MACOS_X
 bool R_GetModeInfo( int *width, int *height, int mode ) {
@@ -573,8 +576,8 @@ static bool R_GetModeInfo( int *width, int *height, int mode ) {
 #endif
 	vidmode_t	*vm;
 
-    if ( mode < -1 ) {
-        return false;
+	if ( mode < -1 ) {
+		return false;
 	}
 	if ( mode >= s_numVidModes ) {
 		return false;
@@ -586,7 +589,7 @@ static bool R_GetModeInfo( int *width, int *height, int mode ) {
 		return true;
 	}
 
-	vm = &r_vidModes[mode];
+	vm = r_vidModes[mode];
 
 	if ( width ) {
 		*width  = vm->width;
@@ -595,7 +598,7 @@ static bool R_GetModeInfo( int *width, int *height, int mode ) {
 		*height = vm->height;
 	}
 
-    return true;
+	return true;
 }
 
 
@@ -816,7 +819,7 @@ static void R_ListModes_f( const idCmdArgs &args ) {
 
 	common->Printf( "\n" );
 	for ( i = 0; i < s_numVidModes; i++ ) {
-		common->Printf( "%s\n", r_vidModes[i].description );
+		common->Printf( "%s\n", r_vidModes[i]->description );
 	}
 	common->Printf( "\n" );
 }
@@ -2041,6 +2044,92 @@ void R_InitCvars( void ) {
 }
 
 /*
+=======================
+R_InitAvailableVidModes
+=======================
+
+Determines which video modes are available for rendering.  Currently, the available video modes are a combination of the video modes reported from SDL 
+and the original video mode array as found in the Doom 3 GPL release.
+*/
+void R_InitAvailableVidModes( void ) {
+	// Currently Doom 3 just supports 16 and 24 bit color
+	// TODO:  Verify only 16 and 24 bit color are used
+	// TODO:  Add 32 bit color support to get more available resolutions?  (Probably won't improve image quality any.)
+
+	SDL_PixelFormat format;
+	format.BitsPerPixel = 16;
+	std::map<Uint32, vidmode_t*> detectedModeMap;
+	for ( int colorDepthIndex = 0; colorDepthIndex < 2; colorDepthIndex++ ) {
+                SDL_Rect** modes = SDL_ListModes( &format, SDL_FULLSCREEN );
+		format.BitsPerPixel = 32;  // 24;
+
+		// If no video modes are reported, fall back to the defaults that were available in the Doom 3 GPL release.
+		// If any resolution is possible, also use the orignal video mode array as found in the Doom 3 GPL release.
+		// TODO:  Consider adding other popular resolutions since any resolution is possible.  Also see the TODOs near r_defaultVidModes.
+		if ( modes != (SDL_Rect**)-1 && modes != (SDL_Rect**)0 ) {
+
+			std::set<Uint32> modeSet;
+			for ( int defaultModeIndex = 0; defaultModeIndex < s_numVidModes; defaultModeIndex++ ) {
+				
+				const Uint32 id = ( ( (Uint32) r_defaultVidModes[ defaultModeIndex ].width ) << 16 ) + r_defaultVidModes[ defaultModeIndex ].height;
+				modeSet.insert( id );
+			}
+
+			for ( int detectedModeIndex = 0; modes[detectedModeIndex]; detectedModeIndex++ ) {
+
+				// Arranging the key like this no only ensures each resolution has a unique ID, it also ensures
+				//   resolutions end up in a logical order
+				const Uint16 width = modes[detectedModeIndex]->w;
+				const Uint16 height = modes[detectedModeIndex]->h;
+				Uint32 id = ( ( (Uint32) width ) << 16 ) + height;
+
+				// Make sure the video mode has not already been found and is not one of the modes that are always available
+				if ( modeSet.find(id) == modeSet.end() ) {
+					vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  Check for invalid pointer and quit program on failure
+					vidmode->width = width;
+					vidmode->height = height;
+					detectedModeMap[id] = vidmode;
+				 	modeSet.insert( id );
+					s_numVidModes++;
+					s_numFoundVidModes++;
+				}
+			}
+		}
+	}
+
+	r_vidModes = (vidmode_t**) malloc( s_numVidModes * sizeof( vidmode_t* ) );
+	r_foundVidModes = (vidmode_t**) calloc( s_numFoundVidModes, sizeof( vidmode_t* ) );
+
+	// First copy the default video modes.  We want the default video modes to remain in their current array positions
+	//   for backwards compatibility with the listModes command and r_modes cvar.
+	const int defaultModeCount = ( sizeof( r_defaultVidModes ) / sizeof( r_defaultVidModes[0] ) );
+	int modeIndex = 0;                
+	for( ; modeIndex < defaultModeCount; modeIndex++ ) {
+
+		r_vidModes[ modeIndex ] = &r_defaultVidModes[ modeIndex ];
+	}
+
+	// Now copy the detected modes into the main video mode array
+	int foundModeIndex = 0;
+	for( std::map<Uint32, vidmode_t*>::const_iterator modeIterator = detectedModeMap.begin(); modeIterator != detectedModeMap.end(); modeIterator++ ) {
+
+		vidmode_t* vidmode = modeIterator->second;
+		r_vidModes[ modeIndex ] = vidmode;
+		r_foundVidModes[ foundModeIndex ] = vidmode;
+
+		std::stringstream description;
+		description << "Mode  " << modeIndex << ": " << vidmode->width << "x" << vidmode->height;
+		const std::string descriptionString = description.str();
+		char* descriptionCString = new char[ descriptionString.size() + 1 ];  // TODO:  Deallocate
+		strncpy( descriptionCString, descriptionString.c_str(), descriptionString.size() + 1 );
+		vidmode->description = descriptionCString;
+		
+		modeIndex++;
+		foundModeIndex++;
+	}
+}
+
+/*
 =================
 R_InitCommands
 =================
@@ -2124,6 +2213,10 @@ void idRenderSystemLocal::Init( void ) {
 
 	common->Printf( "------- Initializing renderSystem --------\n" );
 
+	// Init the video subsystem separately to make this code more modular.
+	//   Someone might eventually want to use AALib for graphics output or something.
+	SDL_InitSubSystem( SDL_INIT_VIDEO );
+
 	// clear all our internal state
 	viewCount = 1;		// so cleared structures never match viewCount
 	// we used to memset tr, but now that it is a class, we can't, so
@@ -2137,6 +2230,8 @@ void idRenderSystemLocal::Init( void ) {
 	memset( &backEnd, 0, sizeof( backEnd ) );
 
 	R_InitCvars();
+
+	R_InitAvailableVidModes();
 
 	R_InitCommands();
 
@@ -2215,6 +2310,8 @@ void idRenderSystemLocal::Shutdown( void ) {
 	Clear();
 
 	ShutdownOpenGL();
+
+	SDL_QuitSubSystem( SDL_INIT_VIDEO );
 }
 
 /*

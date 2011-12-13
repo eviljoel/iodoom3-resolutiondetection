@@ -2800,6 +2800,9 @@ void idCommonLocal::Init( int argc, const char **argv, const char *cmdline ) {
 		// print engine version
 		Printf( "%s\n", version.string );
 
+		// Initalize the SDL library
+		SDL_Init( NULL );
+
 		// initialize key input/binding, done early so bind command exists
 		idKeyInput::Init();
 
@@ -2885,6 +2888,9 @@ void idCommonLocal::Shutdown( void ) {
 
 	// shut down the console
 	console->Shutdown();
+
+	// Shutdown the SDL library
+	SDL_Quit();
 
 	// shut down the key system
 	idKeyInput::Shutdown();

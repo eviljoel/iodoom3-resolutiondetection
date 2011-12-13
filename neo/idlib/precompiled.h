@@ -103,6 +103,10 @@ If you have questions concerning this license or the applicable additional terms
 #include <typeinfo>
 #include <errno.h>
 #include <math.h>
+#include <map>
+#include <set>
+#include <sstream>
+#include <SDL/SDL.h>
 
 //-----------------------------------------------------
 
