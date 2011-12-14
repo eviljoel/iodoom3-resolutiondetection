@@ -2890,7 +2890,7 @@ void idCommonLocal::Shutdown( void ) {
 	console->Shutdown();
 
 	// Shutdown the SDL library
-	SDL_Quit();
+	//SDL_Quit();
 
 	// shut down the key system
 	idKeyInput::Shutdown();

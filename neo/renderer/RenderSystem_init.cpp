@@ -2130,6 +2130,26 @@ void R_InitAvailableVidModes( void ) {
 }
 
 /*
+======================
+R_FreeDetectedVidModes
+======================
+
+Used to free memory allocated during R_InitAvailableVidModes()
+*/
+void R_FreeDetectedVidModes( void ) {
+
+        while( s_numFoundVidModes > 0 )
+        {
+                s_numFoundVidModes--;
+		vidmode_t* vidmode = r_foundVidModes[ s_numFoundVidModes ];
+		free( vidmode->description );
+                free( vidmode );
+        }
+        free( r_foundVidModes );
+        free( r_vidModes );
+}
+
+/*
 =================
 R_InitCommands
 =================
@@ -2294,6 +2314,9 @@ void idRenderSystemLocal::Shutdown( void ) {
 		logFile = 0;
 	}
 
+	// Frees memory allocated in R_InitAvailableVidModes()
+	R_FreeDetectedVidModes();
+
 	// free frame memory
 	R_ShutdownFrameData();
 
@@ -2311,7 +2334,7 @@ void idRenderSystemLocal::Shutdown( void ) {
 
 	ShutdownOpenGL();
 
-	SDL_QuitSubSystem( SDL_INIT_VIDEO );
+	//SDL_QuitSubSystem( SDL_INIT_VIDEO );
 }
 
 /*
