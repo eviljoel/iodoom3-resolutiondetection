@@ -2127,6 +2127,12 @@ void R_InitAvailableVidModes( void ) {
 		modeIndex++;
 		foundModeIndex++;
 	}
+
+	// TODO:  We quit the SDL video subsystem now because it conflicts with R_InitOpenGL() on Linux.  If 
+	//   SDL_QuitSubSystem( SDL_INIT_VIDEO ) is called after R_InitOpenGL(), SDL_QuitSubSystem() seg faults.
+	//   Remove the following line and enable the commented call to SDL_QuitSubSystem() in Shutdown() after 
+	//   Icculus converts the codebase to SDL.
+	SDL_QuitSubSystem( SDL_INIT_VIDEO );
 }
 
 /*
@@ -2334,6 +2340,7 @@ void idRenderSystemLocal::Shutdown( void ) {
 
 	ShutdownOpenGL();
 
+	// TODO:  This call conflicts with R_InitOpenGL().  See comment in R_InitAvailableVidModes().
 	//SDL_QuitSubSystem( SDL_INIT_VIDEO );
 }
 
