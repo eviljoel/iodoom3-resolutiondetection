@@ -2043,6 +2043,48 @@ void R_InitCvars( void ) {
 	// update latched cvars here
 }
 
+// TODO:  Document
+void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::map<Uint32, vidmode_t*>& detectedModeMap ) {
+	
+	SDL_PixelFormat format;
+	format.BitsPerPixel = colorBitsPerPixel;
+	// TODO:  Make sure these flags are right
+	SDL_Rect** modes = SDL_ListModes( &format, SDL_FULLSCREEN | SDL_OPENGL | SDL_HWSURFACE | SDL_DOUBLEBUF );
+
+	// If no video modes are reported, fall back to the defaults that were available in the Doom 3 GPL release.
+	// If any resolution is possible, also use the orignal video mode array as found in the Doom 3 GPL release.
+	// TODO:  Consider adding other popular resolutions since any resolution is possible.  Also see the TODOs near r_defaultVidModes.
+	if ( modes != (SDL_Rect**)-1 && modes != (SDL_Rect**)0 ) {
+
+		std::set<Uint32> modeSet;
+		for ( int defaultModeIndex = 0; defaultModeIndex < s_numVidModes; defaultModeIndex++ ) {
+			
+			const Uint32 id = ( ( (Uint32) r_defaultVidModes[ defaultModeIndex ].width ) << 16 ) + r_defaultVidModes[ defaultModeIndex ].height;
+			modeSet.insert( id );
+		}
+
+		for ( int detectedModeIndex = 0; modes[detectedModeIndex]; detectedModeIndex++ ) {
+
+			// Arranging the key like this no only ensures each resolution has a unique ID, it also ensures
+			//   resolutions end up in a logical order
+			const Uint16 width = modes[detectedModeIndex]->w;
+			const Uint16 height = modes[detectedModeIndex]->h;
+			const Uint32 id = ( ( (Uint32) width ) << 16 ) + height;
+
+			// Make sure the video mode has not already been found and is not one of the modes that are always available
+			if ( modeSet.find(id) == modeSet.end() ) {
+				vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  Check for invalid pointer and quit program on failure
+				vidmode->width = width;
+				vidmode->height = height;
+				detectedModeMap[id] = vidmode;
+				modeSet.insert( id );
+				s_numVidModes++;
+				s_numFoundVidModes++;
+			}
+		}
+	}
+}
+
 /*
 =======================
 R_InitAvailableVidModes
@@ -2052,50 +2094,15 @@ Determines which video modes are available for rendering.  Currently, the availa
 and the original video mode array as found in the Doom 3 GPL release.
 */
 void R_InitAvailableVidModes( void ) {
-	// Currently Doom 3 just supports 16 and 24 bit color
-	// TODO:  Verify only 16 and 24 bit color are used
-	// TODO:  Add 32 bit color support to get more available resolutions?  (Probably won't improve image quality any.)
 
-	SDL_PixelFormat format;
-	format.BitsPerPixel = 16;
+	// The operating system specific R_InitOpenGL() calls support a variety of color depths, but which
+	//   color depths they support are abstracted away from us.  Therefore, we query for all resolutions at the most 	
+	//   popular true color color depths.
+	// TODO:  Should we limit the resolution detection to these three bpps?
 	std::map<Uint32, vidmode_t*> detectedModeMap;
-	for ( int colorDepthIndex = 0; colorDepthIndex < 2; colorDepthIndex++ ) {
-                SDL_Rect** modes = SDL_ListModes( &format, SDL_FULLSCREEN );
-		format.BitsPerPixel = 32;  // 24;
-
-		// If no video modes are reported, fall back to the defaults that were available in the Doom 3 GPL release.
-		// If any resolution is possible, also use the orignal video mode array as found in the Doom 3 GPL release.
-		// TODO:  Consider adding other popular resolutions since any resolution is possible.  Also see the TODOs near r_defaultVidModes.
-		if ( modes != (SDL_Rect**)-1 && modes != (SDL_Rect**)0 ) {
-
-			std::set<Uint32> modeSet;
-			for ( int defaultModeIndex = 0; defaultModeIndex < s_numVidModes; defaultModeIndex++ ) {
-				
-				const Uint32 id = ( ( (Uint32) r_defaultVidModes[ defaultModeIndex ].width ) << 16 ) + r_defaultVidModes[ defaultModeIndex ].height;
-				modeSet.insert( id );
-			}
-
-			for ( int detectedModeIndex = 0; modes[detectedModeIndex]; detectedModeIndex++ ) {
-
-				// Arranging the key like this no only ensures each resolution has a unique ID, it also ensures
-				//   resolutions end up in a logical order
-				const Uint16 width = modes[detectedModeIndex]->w;
-				const Uint16 height = modes[detectedModeIndex]->h;
-				Uint32 id = ( ( (Uint32) width ) << 16 ) + height;
-
-				// Make sure the video mode has not already been found and is not one of the modes that are always available
-				if ( modeSet.find(id) == modeSet.end() ) {
-					vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  Check for invalid pointer and quit program on failure
-					vidmode->width = width;
-					vidmode->height = height;
-					detectedModeMap[id] = vidmode;
-				 	modeSet.insert( id );
-					s_numVidModes++;
-					s_numFoundVidModes++;
-				}
-			}
-		}
-	}
+	R_FindVidModeAtColorDepth( 32, detectedModeMap );
+	R_FindVidModeAtColorDepth( 24, detectedModeMap );
+	R_FindVidModeAtColorDepth( 16, detectedModeMap );
 
 	r_vidModes = (vidmode_t**) malloc( s_numVidModes * sizeof( vidmode_t* ) );
 	r_foundVidModes = (vidmode_t**) calloc( s_numFoundVidModes, sizeof( vidmode_t* ) );
