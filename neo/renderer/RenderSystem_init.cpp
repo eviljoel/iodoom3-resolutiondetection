@@ -553,6 +553,9 @@ typedef struct vidmode_s {
     int         width, height;
 } vidmode_t;
 
+// The default video modes available in the Doom 3 GPL release.  These modes are availble in addition to the modes detected by SDL.  
+//   See R_InitAvailableVidModes().
+// TODO:  Consider adding other popular video modes.
 vidmode_t r_defaultVidModes[] = {
     { "Mode  0: 320x240",		320,	240 },
     { "Mode  1: 400x300",		400,	300 },
@@ -2043,25 +2046,24 @@ void R_InitCvars( void ) {
 	// update latched cvars here
 }
 
-// TODO:  Document
-void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::map<Uint32, vidmode_t*>& detectedModeMap ) {
+/*
+=========================
+R_FindVidModeAtColorDepth
+=========================
+
+Detects which resolutions are avilable at the specified colorBitsPerPixel and adds each resolution to the detectedModeMap 
+  and modeSet.  The detectedModeMap is keyed off a combination of the width and height to ensure each resolution has a unique key.
+  Modes already listed in modeSet are not added to the detectedModeMap.
+*/
+void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::set<Uint32>& modeSet, std::map<Uint32, vidmode_t*>& detectedModeMap ) {
 	
 	SDL_PixelFormat format;
 	format.BitsPerPixel = colorBitsPerPixel;
-	// TODO:  Make sure these flags are right
-	SDL_Rect** modes = SDL_ListModes( &format, SDL_FULLSCREEN | SDL_OPENGL | SDL_HWSURFACE | SDL_DOUBLEBUF );
+	SDL_Rect** modes = SDL_ListModes( &format, SDL_FULLSCREEN | SDL_OPENGL | SDL_DOUBLEBUF );
 
-	// If no video modes are reported, fall back to the defaults that were available in the Doom 3 GPL release.
-	// If any resolution is possible, also use the orignal video mode array as found in the Doom 3 GPL release.
-	// TODO:  Consider adding other popular resolutions since any resolution is possible.  Also see the TODOs near r_defaultVidModes.
+	// If no video modes are reported or if any resolution is possible, then don't add anything to the Map.  At a minimum, the 
+	//   orignal video modes from the Doom 3 GPL release will still be available.
 	if ( modes != (SDL_Rect**)-1 && modes != (SDL_Rect**)0 ) {
-
-		std::set<Uint32> modeSet;
-		for ( int defaultModeIndex = 0; defaultModeIndex < s_numVidModes; defaultModeIndex++ ) {
-			
-			const Uint32 id = ( ( (Uint32) r_defaultVidModes[ defaultModeIndex ].width ) << 16 ) + r_defaultVidModes[ defaultModeIndex ].height;
-			modeSet.insert( id );
-		}
 
 		for ( int detectedModeIndex = 0; modes[detectedModeIndex]; detectedModeIndex++ ) {
 
@@ -2071,9 +2073,9 @@ void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::map<Uint32, vi
 			const Uint16 height = modes[detectedModeIndex]->h;
 			const Uint32 id = ( ( (Uint32) width ) << 16 ) + height;
 
-			// Make sure the video mode has not already been found and is not one of the modes that are always available
+			// Make sure the video mode is not already added to the map and not one of the modes that are always available
 			if ( modeSet.find(id) == modeSet.end() ) {
-				vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  Check for invalid pointer and quit program on failure
+				vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  Check for invalid pointer from malloc and quit program on failure
 				vidmode->width = width;
 				vidmode->height = height;
 				detectedModeMap[id] = vidmode;
@@ -2095,20 +2097,30 @@ and the original video mode array as found in the Doom 3 GPL release.
 */
 void R_InitAvailableVidModes( void ) {
 
+	// Create a set based on the default modes available in the original Doom 3 GPL source code release.  Resolutions
+	//   found in this set are not added to detectedModeMap. 
+	std::set<Uint32> modeSet;
+	for ( int defaultModeIndex = 0; defaultModeIndex < s_numVidModes; defaultModeIndex++ ) {
+		
+		const Uint32 id = ( ( (Uint32) r_defaultVidModes[ defaultModeIndex ].width ) << 16 ) + r_defaultVidModes[ defaultModeIndex ].height;
+		modeSet.insert( id );
+	}
+
 	// The operating system specific R_InitOpenGL() calls support a variety of color depths, but which
 	//   color depths they support are abstracted away from us.  Therefore, we query for all resolutions at the most 	
-	//   popular true color color depths.
+	//   popular color depths.
 	// TODO:  Should we limit the resolution detection to these three bpps?
 	std::map<Uint32, vidmode_t*> detectedModeMap;
-	R_FindVidModeAtColorDepth( 32, detectedModeMap );
-	R_FindVidModeAtColorDepth( 24, detectedModeMap );
-	R_FindVidModeAtColorDepth( 16, detectedModeMap );
+	R_FindVidModeAtColorDepth( 32, modeSet, detectedModeMap );
+	R_FindVidModeAtColorDepth( 24, modeSet, detectedModeMap );
+	R_FindVidModeAtColorDepth( 16, modeSet, detectedModeMap );
 
-	r_vidModes = (vidmode_t**) malloc( s_numVidModes * sizeof( vidmode_t* ) );
+	// TODO:  Consider checking for invalid pointers returned from calloc
+	r_vidModes = (vidmode_t**) calloc( s_numVidModes, sizeof( vidmode_t* ) );
 	r_foundVidModes = (vidmode_t**) calloc( s_numFoundVidModes, sizeof( vidmode_t* ) );
 
 	// First copy the default video modes.  We want the default video modes to remain in their current array positions
-	//   for backwards compatibility with the listModes command and r_modes cvar.
+	//   for backwards compatibility with the listModes command and the r_modes cvar.
 	const int defaultModeCount = ( sizeof( r_defaultVidModes ) / sizeof( r_defaultVidModes[0] ) );
 	int modeIndex = 0;                
 	for( ; modeIndex < defaultModeCount; modeIndex++ ) {
@@ -2127,7 +2139,7 @@ void R_InitAvailableVidModes( void ) {
 		std::stringstream description;
 		description << "Mode  " << modeIndex << ": " << vidmode->width << "x" << vidmode->height;
 		const std::string descriptionString = description.str();
-		char* descriptionCString = new char[ descriptionString.size() + 1 ];  // TODO:  Deallocate
+		char* descriptionCString = new char[ descriptionString.size() + 1 ];
 		strncpy( descriptionCString, descriptionString.c_str(), descriptionString.size() + 1 );
 		vidmode->description = descriptionCString;
 		
@@ -2147,7 +2159,7 @@ void R_InitAvailableVidModes( void ) {
 R_FreeDetectedVidModes
 ======================
 
-Used to free memory allocated during R_InitAvailableVidModes()
+Used to free memory allocated during R_InitAvailableVidModes().
 */
 void R_FreeDetectedVidModes( void ) {
 
@@ -2155,7 +2167,7 @@ void R_FreeDetectedVidModes( void ) {
         {
                 s_numFoundVidModes--;
 		vidmode_t* vidmode = r_foundVidModes[ s_numFoundVidModes ];
-		free( vidmode->description );
+		delete vidmode->description;
                 free( vidmode );
         }
         free( r_foundVidModes );
