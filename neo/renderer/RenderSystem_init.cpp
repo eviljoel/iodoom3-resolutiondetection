@@ -538,16 +538,6 @@ static void R_CheckPortableExtensions( void ) {
 }
 
 
-/*
-====================
-R_GetModeInfo
-
-r_mode is normally a small non-negative integer that
-looks resolutions up in a table, but if it is set to -1,
-the values from r_customWidth, amd r_customHeight
-will be used instead.
-====================
-*/
 typedef struct vidmode_s {
     const char *description;
     int         width, height;
@@ -568,10 +558,20 @@ vidmode_t r_defaultVidModes[] = {
     { "Mode  8: 1600x1200",		1600,	1200 },
 };
 vidmode_t** r_vidModes; 
-static int	s_numVidModes = ( sizeof( r_defaultVidModes ) / sizeof( r_defaultVidModes[0] ) );
+static int s_numVidModes = ( sizeof( r_defaultVidModes ) / sizeof( r_defaultVidModes[0] ) );
 vidmode_t** r_foundVidModes;  // Keep a list of pointers we need to free
 static int s_numFoundVidModes = 0;
 
+/*
+====================
+R_GetModeInfo
+
+r_mode is normally a small non-negative integer that
+looks resolutions up in a table, but if it is set to -1,
+the values from r_customWidth, amd r_customHeight
+will be used instead.
+====================
+*/
 #if MACOS_X
 bool R_GetModeInfo( int *width, int *height, int mode ) {
 #else
@@ -641,18 +641,20 @@ void R_InitOpenGL( void ) {
 	//
 	for ( i = 0 ; i < 2 ; i++ ) {
 		// set the parameters we are trying
-		R_GetModeInfo( &glConfig.vidWidth, &glConfig.vidHeight, r_mode.GetInteger() );
+		const bool modeValid = R_GetModeInfo( &glConfig.vidWidth, &glConfig.vidHeight, r_mode.GetInteger() );
+		if ( modeValid ) {
 
-		parms.width = glConfig.vidWidth;
-		parms.height = glConfig.vidHeight;
-		parms.fullScreen = r_fullscreen.GetBool();
-		parms.displayHz = r_displayRefresh.GetInteger();
-		parms.multiSamples = r_multiSamples.GetInteger();
-		parms.stereo = false;
+			parms.width = glConfig.vidWidth;
+			parms.height = glConfig.vidHeight;
+			parms.fullScreen = r_fullscreen.GetBool();
+			parms.displayHz = r_displayRefresh.GetInteger();
+			parms.multiSamples = r_multiSamples.GetInteger();
+			parms.stereo = false;
 
-		if ( GLimp_Init( parms ) ) {
-			// it worked
-			break;
+			if ( GLimp_Init( parms ) ) {
+				// it worked
+				break;
+			}
 		}
 
 		if ( i == 1 ) {
