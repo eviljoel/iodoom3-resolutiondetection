@@ -541,21 +541,22 @@ static void R_CheckPortableExtensions( void ) {
 typedef struct vidmode_s {
     const char *description;
     int         width, height;
+    int         ratio;
 } vidmode_t;
 
 // The default video modes available in the Doom 3 GPL release.  These modes are availble in addition to the modes detected by SDL.  
 //   See R_InitAvailableVidModes().
 // TODO:  Consider adding other popular video modes.
 vidmode_t r_defaultVidModes[] = {
-    { "Mode  0: 320x240",		320,	240 },
-    { "Mode  1: 400x300",		400,	300 },
-    { "Mode  2: 512x384",		512,	384 },
-    { "Mode  3: 640x480",		640,	480 },
-    { "Mode  4: 800x600",		800,	600 },
-    { "Mode  5: 1024x768",		1024,	768 },
-    { "Mode  6: 1152x864",		1152,	864 },
-    { "Mode  7: 1280x1024",		1280,	1024 },
-    { "Mode  8: 1600x1200",		1600,	1200 },
+    { "Mode  0: 320x240 (4:3)",		320,	240,	0 },
+    { "Mode  1: 400x300 (4:3)",		400,	300,	0 },
+    { "Mode  2: 512x384 (4:3)",		512,	384,	0 },
+    { "Mode  3: 640x480 (4:3)",		640,	480,	0 },
+    { "Mode  4: 800x600 (4:3)",		800,	600,	0 },
+    { "Mode  5: 1024x768 (4:3)",		1024,	768,	0 },
+    { "Mode  6: 1152x864 (4:3)",		1152,	864,	0 },
+    { "Mode  7: 1280x1024 (4:3)",		1280,	1024,	0 },
+    { "Mode  8: 1600x1200 (4:3)",		1600,	1200,	0 },
 };
 vidmode_t** r_vidModes; 
 static int s_numVidModes = ( sizeof( r_defaultVidModes ) / sizeof( r_defaultVidModes[0] ) );
@@ -575,7 +576,7 @@ will be used instead.
 #if MACOS_X
 bool R_GetModeInfo( int *width, int *height, int mode ) {
 #else
-static bool R_GetModeInfo( int *width, int *height, int mode ) {
+static bool R_GetModeInfo( int *width, int *height, int *ratio, int mode ) {
 #endif
 	vidmode_t	*vm;
 
@@ -599,6 +600,9 @@ static bool R_GetModeInfo( int *width, int *height, int mode ) {
 	}
 	if ( height ) {
 		*height = vm->height;
+	}
+	if ( ratio ) {
+		*ratio = vm->ratio;
 	}
 
 	return true;
@@ -640,9 +644,17 @@ void R_InitOpenGL( void ) {
 	// initialize OS specific portions of the renderSystem
 	//
 	for ( i = 0 ; i < 2 ; i++ ) {
+
+		// Get the current aspect ratio in case r_mode is set to -1 (custom)
+		int aspectRatio = cvarSystem->GetCVarInteger( "r_aspectRatio" );
+
 		// set the parameters we are trying
-		const bool modeValid = R_GetModeInfo( &glConfig.vidWidth, &glConfig.vidHeight, r_mode.GetInteger() );
+		const bool modeValid = R_GetModeInfo( &glConfig.vidWidth, &glConfig.vidHeight, &aspectRatio, r_mode.GetInteger() );
 		if ( modeValid ) {
+
+			// Update the aspect ratio based on the selected r_mode
+			// TODO:  Is it appropriate to be over writing the cvar?
+			cvarSystem->SetCVarInteger( "r_aspectRatio", aspectRatio );
 
 			parms.width = glConfig.vidWidth;
 			parms.height = glConfig.vidHeight;
@@ -2049,6 +2061,39 @@ void R_InitCvars( void ) {
 }
 
 /*
+===================
+R_DetectAspectRatio
+===================
+
+Returns the best matching value for the r_aspectRatio cvar based on the specified width and height.
+*/
+const float WIDE_SCREEN_16_9_CUT_OFF = (float) 76 / 45;
+const float WIDE_SCREEN_16_10_CUT_OFF = (float) 22 / 15;
+const int R_DetectAspectRatio( const int& width, const int& height ) {
+
+	float detectedRatio = (float) width / height;
+
+	int ratioCode;
+
+	// See if this is a match for the 16:9 aspect ratio
+	if ( detectedRatio > WIDE_SCREEN_16_9_CUT_OFF ) {
+
+		ratioCode = 2;  // 16:9 aspect ratio
+
+	// See if this is a match for the 16:10 aspect ratio
+	} else if ( detectedRatio <= WIDE_SCREEN_16_9_CUT_OFF && detectedRatio > WIDE_SCREEN_16_10_CUT_OFF ) {
+
+		ratioCode = 1;  // 16:10 aspect ratio
+
+	} else {
+
+		ratioCode = 0;  // 4:3 aspect ratio
+	}
+
+	return ratioCode;
+}
+
+/*
 =========================
 R_FindVidModeAtColorDepth
 =========================
@@ -2080,6 +2125,7 @@ void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::set<Uint32>& m
 				vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  Check for invalid pointer from malloc and quit program on failure
 				vidmode->width = width;
 				vidmode->height = height;
+				vidmode->ratio = R_DetectAspectRatio( width, height );
 				detectedModeMap[id] = vidmode;
 				modeSet.insert( id );
 				s_numVidModes++;
@@ -2097,6 +2143,7 @@ R_InitAvailableVidModes
 Determines which video modes are available for rendering.  Currently, the available video modes are a combination of the video modes reported from SDL 
 and the original video mode array as found in the Doom 3 GPL release.
 */
+const std::string RATIO_DESCRIPTIONS[] = { " (4:3)", " (16:10)", " (16:9)" };
 void R_InitAvailableVidModes( void ) {
 
 	// Create a set based on the default modes available in the original Doom 3 GPL source code release.  Resolutions
@@ -2139,7 +2186,7 @@ void R_InitAvailableVidModes( void ) {
 		r_foundVidModes[ foundModeIndex ] = vidmode;
 
 		std::stringstream description;
-		description << "Mode  " << modeIndex << ": " << vidmode->width << "x" << vidmode->height;
+		description << "Mode  " << modeIndex << ": " << vidmode->width << "x" << vidmode->height << RATIO_DESCRIPTIONS[ vidmode->ratio ];
 		const std::string descriptionString = description.str();
 		char* descriptionCString = new char[ descriptionString.size() + 1 ];
 		strncpy( descriptionCString, descriptionString.c_str(), descriptionString.size() + 1 );
