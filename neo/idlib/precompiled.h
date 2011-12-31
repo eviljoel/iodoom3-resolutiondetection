@@ -63,11 +63,6 @@ If you have questions concerning this license or the applicable additional terms
 	#define NDEBUG
 #endif
 
-#include <map>
-#include <set>
-#include <sstream>
-#include <SDL/SDL.h>
-
 //-----------------------------------------------------
 
 // non-portable system services

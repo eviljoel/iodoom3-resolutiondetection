@@ -40,6 +40,11 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "renderer/tr_local.h"
 
+#include <map>
+#include <set>
+#include <sstream>
+#include <SDL/SDL.h>
+
 // Vista OpenGL wrapper check
 #ifdef _WIN32
 #include "sys/win32/win_local.h"
