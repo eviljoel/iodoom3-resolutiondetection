@@ -222,6 +222,20 @@ void idSessionLocal::SetSaveGameGuiVars( void ) {
 
 /*
 ===============
+idSessionLocal::SetSystemMenuGuiVars
+
+Adds GUI variables necessary to render the System GUI menu.
+===============
+*/
+void idSessionLocal::SetSystemMenuGuiVars( void ) {
+	char* resolutionDescriptions = renderSystem->GetResolutionGuiChoices();
+	guiMainMenu->SetStateString( "system_resolution_desc", resolutionDescriptions );
+	char* resolutionModes = renderSystem->GetResolutionGuiValues();
+	guiMainMenu->SetStateString( "system_resolution_modes", resolutionModes );
+}
+
+/*
+===============
 idSessionLocal::SetModsMenuGuiVars
 ===============
 */
@@ -318,6 +332,7 @@ void idSessionLocal::SetMainMenuGuiVars( void ) {
 	guiMainMenu->SetStateString( "browser_levelshot", "guis/assets/splash/pdtempa" );
 
 	SetMainMenuSkin();
+	SetSystemMenuGuiVars();
 	// Mods Menu
 	SetModsMenuGuiVars();
 

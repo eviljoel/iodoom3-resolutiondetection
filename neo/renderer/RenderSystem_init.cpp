@@ -824,8 +824,6 @@ static void R_ReloadSurface_f( const idCmdArgs &args ) {
 	mt.material->ReloadImages( false );
 }
 
-
-
 /*
 ==============
 R_ListModes_f
@@ -840,8 +838,6 @@ static void R_ListModes_f( const idCmdArgs &args ) {
 	}
 	common->Printf( "\n" );
 }
-
-
 
 /*
 =============
@@ -2102,7 +2098,12 @@ Detects which resolutions are avilable at the specified colorBitsPerPixel and ad
   and modeSet.  The detectedModeMap is keyed off a combination of the width and height to ensure each resolution has a unique key.
   Modes already listed in modeSet are not added to the detectedModeMap.
 */
-void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::set<Uint32>& modeSet, std::map<Uint32, vidmode_t*>& detectedModeMap ) {
+typedef struct vidModeWithIndex_s {
+	int		modeId;
+	vidmode_t*	vidMode;
+} vidModeWithIndex_t;
+
+void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::map<Uint32, vidModeWithIndex_t*>& modeMap, std::map<Uint32, vidmode_t*>& detectedModeMap ) {
 	
 	SDL_PixelFormat format;
 	format.BitsPerPixel = colorBitsPerPixel;
@@ -2112,6 +2113,7 @@ void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::set<Uint32>& m
 	//   orignal video modes from the Doom 3 GPL release will still be available.
 	if ( modes != (SDL_Rect**)-1 && modes != (SDL_Rect**)0 ) {
 
+		std::map<Uint32, vidModeWithIndex_t*>::const_iterator modeMapEnd = modeMap.end();
 		for ( int detectedModeIndex = 0; modes[detectedModeIndex]; detectedModeIndex++ ) {
 
 			// Arranging the key like this no only ensures each resolution has a unique ID, it also ensures
@@ -2121,17 +2123,63 @@ void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::set<Uint32>& m
 			const Uint32 id = ( ( (Uint32) width ) << 16 ) + height;
 
 			// Make sure the video mode is not already added to the map and not one of the modes that are always available
-			if ( modeSet.find(id) == modeSet.end() ) {
+			if ( modeMap.find( id ) == modeMapEnd ) {
 				vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  Check for invalid pointer from malloc and quit program on failure
 				vidmode->width = width;
 				vidmode->height = height;
 				vidmode->ratio = R_DetectAspectRatio( width, height );
 				detectedModeMap[id] = vidmode;
-				modeSet.insert( id );
+				vidModeWithIndex_t* vidModeWithIndex = (vidModeWithIndex_t*) malloc( sizeof( vidModeWithIndex_t* ) );
+				vidModeWithIndex->modeId = s_numVidModes;
+				vidModeWithIndex->vidMode = vidmode;
+				modeMap[id] = vidModeWithIndex;
 				s_numVidModes++;
 				s_numFoundVidModes++;
 			}
 		}
+	}
+}
+
+/*
+=======================
+R_InitGuiResolutionVars
+=======================
+
+Creates strings to be used in the resolution selection ChoiceDef of the main menu.
+*/
+char** gui_choices;
+char** gui_values;
+void R_InitGuiResolutionVars( std::map<Uint32, vidModeWithIndex_t*>& modeMap ) {
+		
+	for( std::map<Uint32, vidModeWithIndex_t*>::const_iterator modeIterator = modeMap.begin(); modeIterator != modeMap.end(); modeIterator++ ) {
+
+		vidModeWithIndex_t* vidModeWithIndex = modeIterator->second;
+		vidmode_t* vidMode = vidModeWithIndex->vidMode;
+		const Uint16 height = vidMode->height; 
+		const Uint16 width = vidMode->width;
+		char* delimitor = "\0";
+
+		std::stringstream choiceDescription;
+		std::stringstream valueDescription;
+		
+		// Id Software did not list resolutions smaller than 640x480, so if any detected resolution cannot fit within 640x480,
+		//    we do not display it in the menu
+		if ( height >= MINIMUM_DISPLAYED_RESOLUTION_HEIGHT && width >= MINIMUM_DISPLAYED_RESOLUTION_WIDTH ) {
+
+			choiceDescription << delimitor << width << "x" << height;
+
+			valueDescription << delimitor << vidModeWithIndex->modeId;
+
+			delimitor = ";";
+		}
+
+		const std::string choicesString = choiceDescription.str();
+		*gui_choices = new char[ choicesString.size() + 1 ];
+		strncpy( *gui_choices, choicesString.c_str(), choicesString.size() + 1 );
+
+		const std::string valuesString = valueDescription.str();
+		*gui_values = new char[ valuesString.size() + 1 ];
+		strncpy( *gui_values, valuesString.c_str(), valuesString.size() + 1 );
 	}
 }
 
@@ -2146,13 +2194,17 @@ and the original video mode array as found in the Doom 3 GPL release.
 const std::string RATIO_DESCRIPTIONS[] = { " (4:3)", " (16:10)", " (16:9)" };
 void R_InitAvailableVidModes( void ) {
 
-	// Create a set based on the default modes available in the original Doom 3 GPL source code release.  Resolutions
-	//   found in this set are not added to detectedModeMap. 
-	std::set<Uint32> modeSet;
+	// Create a Map with all the available modes including the modes statically defined in the original Doom 3 GPL source 
+	//   code release.  Once a resolution is added to this Map the mode will not be added to the detectedModeMap. 
+	std::map<Uint32, vidModeWithIndex_t*> modeMap;
 	for ( int defaultModeIndex = 0; defaultModeIndex < s_numVidModes; defaultModeIndex++ ) {
-		
-		const Uint32 id = ( ( (Uint32) r_defaultVidModes[ defaultModeIndex ].width ) << 16 ) + r_defaultVidModes[ defaultModeIndex ].height;
-		modeSet.insert( id );
+
+		vidmode_t* vidMode = &r_defaultVidModes[ defaultModeIndex ];
+		vidModeWithIndex_t* vidModeWithIndex = (vidModeWithIndex_t*) malloc( sizeof( vidModeWithIndex_t* ) );
+		vidModeWithIndex->modeId = defaultModeIndex;
+		vidModeWithIndex->vidMode = vidMode;
+ 		const Uint32 id = ( ( (Uint32) vidMode->width ) << 16 ) + vidMode->height;
+		modeMap[ id ] = vidModeWithIndex;
 	}
 
 	// The operating system specific R_InitOpenGL() calls support a variety of color depths, but which
@@ -2160,9 +2212,9 @@ void R_InitAvailableVidModes( void ) {
 	//   popular color depths.
 	// TODO:  Should we limit the resolution detection to these three bpps?
 	std::map<Uint32, vidmode_t*> detectedModeMap;
-	R_FindVidModeAtColorDepth( 32, modeSet, detectedModeMap );
-	R_FindVidModeAtColorDepth( 24, modeSet, detectedModeMap );
-	R_FindVidModeAtColorDepth( 16, modeSet, detectedModeMap );
+	R_FindVidModeAtColorDepth( 32, modeMap, detectedModeMap );
+	R_FindVidModeAtColorDepth( 24, modeMap, detectedModeMap );
+	R_FindVidModeAtColorDepth( 16, modeMap, detectedModeMap );
 
 	// TODO:  Consider checking for invalid pointers returned from calloc
 	r_vidModes = (vidmode_t**) calloc( s_numVidModes, sizeof( vidmode_t* ) );
@@ -2191,10 +2243,12 @@ void R_InitAvailableVidModes( void ) {
 		char* descriptionCString = new char[ descriptionString.size() + 1 ];
 		strncpy( descriptionCString, descriptionString.c_str(), descriptionString.size() + 1 );
 		vidmode->description = descriptionCString;
-		
+
 		modeIndex++;
 		foundModeIndex++;
 	}
+
+	R_InitGuiResolutionVars( modeMap );
 
 	// TODO:  We quit the SDL video subsystem now because it conflicts with R_InitOpenGL() on Linux.  If 
 	//   SDL_QuitSubSystem( SDL_INIT_VIDEO ) is called after R_InitOpenGL(), SDL_QuitSubSystem() seg faults.
@@ -2517,3 +2571,26 @@ void idRenderSystemLocal::GetCardCaps( bool &oldCard, bool &nv10or20 ) {
 	oldCard = ( tr.backEndRenderer == BE_ARB || tr.backEndRenderer == BE_R200 || tr.backEndRenderer == BE_NV10 || tr.backEndRenderer == BE_NV20 );
 }
 
+/*
+=============
+idRenderSystemLocal::GetResolutionGuiChoices
+
+Returns a string of all the available resolutions in a format that is ready to be interprested by the 
+  choicedef GUI window.  Intended to be used with GetResolutionGuiValues.
+=============
+*/
+char* idRenderSystemLocal::GetResolutionGuiChoices() {
+	return *gui_choices;
+}
+
+/*
+=============
+idRenderSystemLocal::GetResolutionGuiValues
+
+Returns a string of all the available r_modes in a format that is ready to be interprested by the 
+  choicedef GUI window.  Intended to be used with GetResolutionGuiChoices.
+=============
+*/
+char* idRenderSystemLocal::GetResolutionGuiValues() {
+	return *gui_values;
+}

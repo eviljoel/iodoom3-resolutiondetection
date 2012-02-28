@@ -47,6 +47,9 @@ const int FOG_ENTER_SIZE = 64;
 const float FOG_ENTER = (FOG_ENTER_SIZE+1.0f)/(FOG_ENTER_SIZE*2);
 // picky to get the bilerp correct at terminator
 
+const Uint16 MINIMUM_DISPLAYED_RESOLUTION_HEIGHT = 640;
+const Uint16 MINIMUM_DISPLAYED_RESOLUTION_WIDTH = 480; 
+
 
 // idScreenRect gets carried around with each drawSurf, so it makes sense
 // to keep it compact, instead of just using the idBounds class
@@ -731,6 +734,8 @@ public:
 	virtual void			UnCrop();
 	virtual void			GetCardCaps( bool &oldCard, bool &nv10or20 );
 	virtual bool			UploadImage( const char *imageName, const byte *data, int width, int height );
+	virtual char*			GetResolutionGuiChoices();
+	virtual char*			GetResolutionGuiValues();
 
 public:
 	// internal functions

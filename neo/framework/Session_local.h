@@ -329,6 +329,7 @@ public:
 
 	void				SetSaveGameGuiVars( void );
 	void				SetMainMenuGuiVars( void );
+	void				SetSystemMenuGuiVars( void );
 	void				SetModsMenuGuiVars( void );
 	void				SetMainMenuSkin( void );
 	void				SetPbMenuGuiVars( void );

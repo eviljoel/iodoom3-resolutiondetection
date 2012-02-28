@@ -256,6 +256,11 @@ public:
 	// texture filter / mipmapping / repeat won't be modified by the upload
 	// returns false if the image wasn't found
 	virtual bool			UploadImage( const char *imageName, const byte *data, int width, int height ) = 0;
+
+	// Used to select available resolutions in the main menu
+	virtual char*			GetResolutionGuiChoices() = 0;
+	virtual char*			GetResolutionGuiValues() = 0;
+
 };
 
 extern idRenderSystem *			renderSystem;
