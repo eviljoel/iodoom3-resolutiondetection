@@ -2147,40 +2147,42 @@ R_InitGuiResolutionVars
 
 Creates strings to be used in the resolution selection ChoiceDef of the main menu.
 */
-char** gui_choices;
-char** gui_values;
+char* gui_choices;
+char* gui_values;
 void R_InitGuiResolutionVars( std::map<Uint32, vidModeWithIndex_t*>& modeMap ) {
 		
+	std::stringstream choiceDescription;
+	std::stringstream valueDescription;
+	std::string delimitor = "\0";
+	
 	for( std::map<Uint32, vidModeWithIndex_t*>::const_iterator modeIterator = modeMap.begin(); modeIterator != modeMap.end(); modeIterator++ ) {
 
 		vidModeWithIndex_t* vidModeWithIndex = modeIterator->second;
 		vidmode_t* vidMode = vidModeWithIndex->vidMode;
 		const Uint16 height = vidMode->height; 
 		const Uint16 width = vidMode->width;
-		char* delimitor = "\0";
 
-		std::stringstream choiceDescription;
-		std::stringstream valueDescription;
-		
 		// Id Software did not list resolutions smaller than 640x480, so if any detected resolution cannot fit within 640x480,
 		//    we do not display it in the menu
 		if ( height >= MINIMUM_DISPLAYED_RESOLUTION_HEIGHT && width >= MINIMUM_DISPLAYED_RESOLUTION_WIDTH ) {
 
 			choiceDescription << delimitor << width << "x" << height;
-
 			valueDescription << delimitor << vidModeWithIndex->modeId;
 
 			delimitor = ";";
 		}
 
-		const std::string choicesString = choiceDescription.str();
-		*gui_choices = new char[ choicesString.size() + 1 ];
-		strncpy( *gui_choices, choicesString.c_str(), choicesString.size() + 1 );
-
-		const std::string valuesString = valueDescription.str();
-		*gui_values = new char[ valuesString.size() + 1 ];
-		strncpy( *gui_values, valuesString.c_str(), valuesString.size() + 1 );
+		// Free the vidModeWithIndex_t structs as we won't be needing them anymore
+		free( vidModeWithIndex );
 	}
+		
+	const std::string choicesString = choiceDescription.str();
+	gui_choices = new char[ choicesString.size() + 1 ];
+	strncpy( gui_choices, choicesString.c_str(), choicesString.size() + 1 );
+
+	const std::string valuesString = valueDescription.str();
+	gui_values = new char[ valuesString.size() + 1 ];
+	strncpy( gui_values, valuesString.c_str(), valuesString.size() + 1 );
 }
 
 /*
@@ -2580,7 +2582,7 @@ Returns a string of all the available resolutions in a format that is ready to b
 =============
 */
 char* idRenderSystemLocal::GetResolutionGuiChoices() {
-	return *gui_choices;
+	return gui_choices;
 }
 
 /*
@@ -2592,5 +2594,5 @@ Returns a string of all the available r_modes in a format that is ready to be in
 =============
 */
 char* idRenderSystemLocal::GetResolutionGuiValues() {
-	return *gui_values;
+	return gui_values;
 }

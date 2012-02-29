@@ -47,8 +47,8 @@ const int FOG_ENTER_SIZE = 64;
 const float FOG_ENTER = (FOG_ENTER_SIZE+1.0f)/(FOG_ENTER_SIZE*2);
 // picky to get the bilerp correct at terminator
 
-const Uint16 MINIMUM_DISPLAYED_RESOLUTION_HEIGHT = 640;
-const Uint16 MINIMUM_DISPLAYED_RESOLUTION_WIDTH = 480; 
+const Uint16 MINIMUM_DISPLAYED_RESOLUTION_WIDTH = 640;
+const Uint16 MINIMUM_DISPLAYED_RESOLUTION_HEIGHT = 480; 
 
 
 // idScreenRect gets carried around with each drawSurf, so it makes sense
