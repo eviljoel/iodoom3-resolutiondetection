@@ -262,6 +262,11 @@ idWinVar *idChoiceWindow::GetWinVarByName(const char *_name, bool fixup, drawWin
 	if ( idStr::Icmp( _name, "values" ) == 0 ) {
 		return &choiceVals;
 	}
+	// "Registered values" which allows state string replacements.  Cannot be used with the "values" property.
+	//   The original "value" property behavior is retained for backwards compatibility.
+	if ( idStr::Icmp( _name, "regValues" ) == 0 ) {
+		return &choiceVals;
+	}
 	if ( idStr::Icmp( _name, "cvar" ) == 0 ) {
 		return &cvarStr;
 	}
@@ -281,7 +286,7 @@ idWinVar *idChoiceWindow::GetWinVarByName(const char *_name, bool fixup, drawWin
 // update the lists whenever the WinVar have changed
 void idChoiceWindow::UpdateChoicesAndVals( void ) {
 	idToken token;
-	idStr str2, str3;
+	idStr str2;
 	idLexer src;
 
 	if ( latchedChoices.Icmp( choicesStr ) ) {

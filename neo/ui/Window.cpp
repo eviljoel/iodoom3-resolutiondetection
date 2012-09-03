@@ -78,6 +78,9 @@ const idRegEntry idWindow::RegisterVars[] = {
 	{ "varbackground", idRegister::STRING },
 	{ "cvar", idRegister::STRING },
 	{ "choices", idRegister::STRING },
+	// "Registered values" which allows state string replacements.  Cannot be used with the "values" property.
+	//   The original "value" property behavior is retained for backwards compatibility.
+	{ "regValues", idRegister::STRING },
 	{ "choiceVar", idRegister::STRING },
 	{ "bind", idRegister::STRING },
 	{ "modelRotate", idRegister::VEC4 },
