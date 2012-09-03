@@ -2130,7 +2130,6 @@ void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::map<Uint32, vi
 				vidmode->ratio = R_DetectAspectRatio( width, height );
 				detectedModeMap[id] = vidmode;
 				vidModeWithIndex_t* vidModeWithIndex = (vidModeWithIndex_t*) malloc( sizeof( vidModeWithIndex_t* ) );
-				vidModeWithIndex->modeId = s_numVidModes;
 				vidModeWithIndex->vidMode = vidmode;
 				modeMap[id] = vidModeWithIndex;
 				s_numVidModes++;
@@ -2234,6 +2233,8 @@ void R_InitAvailableVidModes( void ) {
 	// Now copy the detected modes into the main video mode array
 	int foundModeIndex = 0;
 	for( std::map<Uint32, vidmode_t*>::const_iterator modeIterator = detectedModeMap.begin(); modeIterator != detectedModeMap.end(); modeIterator++ ) {
+
+		modeMap[ modeIterator->first ]->modeId = modeIndex;
 
 		vidmode_t* vidmode = modeIterator->second;
 		r_vidModes[ modeIndex ] = vidmode;
