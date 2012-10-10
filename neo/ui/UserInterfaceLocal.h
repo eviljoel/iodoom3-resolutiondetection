@@ -38,6 +38,7 @@ public:
 	virtual const char *		Comment() const;
 	virtual bool				IsInteractive() const;
 	virtual bool				InitFromFile( const char *qpath, bool rebuild = true, bool cache = true );
+	virtual void				PatchFromFile( const char *qpath );
 	virtual const char *		HandleEvent( const sysEvent_t *event, int time, bool *updateVisuals );
 	virtual void				HandleNamedEvent( const char* namedEvent );
 	virtual void				Redraw( int time );

@@ -62,6 +62,8 @@ public:
 								// returns false if it failed to load
 	virtual bool				InitFromFile( const char *qpath, bool rebuild = true, bool cache = true ) = 0;
 
+	virtual void 				PatchFromFile( const char *qpath ) = 0;
+
 								// handles an event, can return an action string, the caller interprets
 								// any return and acts accordingly
 	virtual const char *		HandleEvent( const sysEvent_t *event, int time, bool *updateVisuals = NULL ) = 0;
