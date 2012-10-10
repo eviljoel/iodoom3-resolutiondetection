@@ -332,6 +332,47 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, bool rebuild, bool c
 	return true; 
 }
 
+void idUserInterfaceLocal::PatchFromFile( const char *qpath ) {
+
+	// TODO:  eviljoel:  Not sure if this check is needed.  Especially until we can have GUI patches initiated from
+	//   user data.
+	/*if ( qpath && *qpath ) {
+
+		loading = true;
+
+		source = qpath;
+		//state.Set( "text", "Test Text!" );
+
+		idParser src( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
+
+		//Load the timestamp so reload guis will work correctly
+		// TODO:  How does the timestamp work with GUI patches?
+		fileSystem->ReadFile(qpath, NULL, &timeStamp);
+
+		src.LoadFile( qpath );
+
+		if ( src.IsLoaded() ) {
+			idToken token;
+			while( src.ReadToken( &token ) ) {
+				// TODO:  Likely not just a windowDef
+				if ( idStr::Icmp( token, "windowDef" ) == 0 ) {
+					if ( desktop->Parse( &src, false ) ) {  // TODO:  Not sure if we can reuse Parse() yet.
+						desktop->FixupParms();
+					}
+				}
+			}
+
+			//state.Set( "name", qpath );
+
+		} else {
+			// If a GUI patch does not load, ignore it and fall back to the default behavior.
+			common->Warning( "Couldn't load GUI patch: '%s'", qpath );
+		}
+
+		loading = false;
+	}*/
+}
+
 const char *idUserInterfaceLocal::HandleEvent( const sysEvent_t *event, int _time, bool *updateVisuals ) {
 
 	time = _time;

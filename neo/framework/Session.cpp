@@ -2908,6 +2908,7 @@ void idSessionLocal::Init() {
 #else
 	guiMainMenu = uiManager->FindGui( "guis/demo_mainmenu.gui", true, false, true );
 #endif
+	guiMainMenu->PatchFromFile( "guis/mainmenu-OS2Primary.guiPatch" );
 	guiMainMenu_MapList = uiManager->AllocListGUI();
 	guiMainMenu_MapList->Config( guiMainMenu, "mapList" );
 	idAsyncNetwork::client.serverList.GUIConfig( guiMainMenu, "serverList" );
