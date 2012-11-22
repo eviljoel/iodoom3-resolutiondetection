@@ -37,7 +37,7 @@ public:
 	virtual const char *		Name() const;
 	virtual const char *		Comment() const;
 	virtual bool				IsInteractive() const;
-	virtual bool				InitFromFile( const char *qpath, bool rebuild = true, bool cache = true );
+	virtual bool				InitFromFile( const char *qpath, idStrList& patchPaths, bool rebuild = true, bool cache = true );
 	virtual const char *		HandleEvent( const sysEvent_t *event, int time, bool *updateVisuals );
 	virtual void				HandleNamedEvent( const char* namedEvent );
 	virtual void				Redraw( int time );
@@ -92,6 +92,9 @@ public:
 	idStr						&GetReturnCmd() { return returnCmd; };
 
 private:
+	// TODO:  eviljoel:  Document
+	std::map<idStr, idWindow>	InitPatchFiles( idStrList& patchPaths, bool rebuild );
+
 	bool						active;
 	bool						loading;
 	bool						interactive;
@@ -132,6 +135,7 @@ public:
 	virtual idUserInterface *	Alloc( void ) const;
 	virtual void				DeAlloc( idUserInterface *gui );
 	virtual idUserInterface *	FindGui( const char *qpath, bool autoLoad = false, bool needInteractive = false, bool forceUnique = false );
+	virtual idUserInterface *	FindGuiAndGuiPatches( const char *qpath, idStrList& patchPaths, bool autoLoad = false, bool needUnique = false, bool forceUnique = false );
 	virtual idUserInterface *	FindDemoGui( const char *qpath );
 	virtual	idListGUI *			AllocListGUI( void ) const;
 	virtual void				FreeListGUI( idListGUI *listgui );

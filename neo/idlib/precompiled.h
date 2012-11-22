@@ -93,6 +93,7 @@ If you have questions concerning this license or the applicable additional terms
 	#define NDEBUG
 #endif
 
+// TODO:  Don't use the standard library
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>

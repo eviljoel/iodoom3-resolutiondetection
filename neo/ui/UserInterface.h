@@ -59,7 +59,7 @@ public:
 
 	virtual void				SetUniqued( bool b ) = 0;
 								// returns false if it failed to load
-	virtual bool				InitFromFile( const char *qpath, bool rebuild = true, bool cache = true ) = 0;
+	virtual bool				InitFromFile( const char *qpath, idStrList& patchPaths, bool rebuild = true, bool cache = true ) = 0;
 
 								// handles an event, can return an action string, the caller interprets
 								// any return and acts accordingly
@@ -146,6 +146,11 @@ public:
 
 								// Returns NULL if gui by that name does not exist.
 	virtual idUserInterface *	FindGui( const char *qpath, bool autoLoad = false, bool needUnique = false, bool forceUnique = false ) = 0;
+
+								// Returns NULL if gui by that name does not exist.
+								// Note the patch files are only applied the first time qpath is loaded unless forceNOTUnique is false and
+								//   (needUnique is true or the GUI is interactive).
+	virtual idUserInterface *	FindGuiAndGuiPatches( const char *qpath, idStrList& patchPaths, bool autoLoad = false, bool needUnique = false, bool forceUnique = false ) = 0;
 
 								// Returns NULL if gui by that name does not exist.
 	virtual idUserInterface *	FindDemoGui( const char *qpath ) = 0;

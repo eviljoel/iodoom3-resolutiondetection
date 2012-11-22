@@ -1874,7 +1874,8 @@ void idGameLocal::CacheDictionaryMedia( const idDict *dict ) {
 				declManager->MediaPrint( "Precaching gui %s\n", kv->GetValue().c_str() );
 				idUserInterface *gui = uiManager->Alloc();
 				if ( gui ) {
-					gui->InitFromFile( kv->GetValue() );
+					idStrList patchPaths( 1 );  // Use the smallest granularity for an empty List
+					gui->InitFromFile( kv->GetValue(), patchPaths );
 					uiManager->DeAlloc( gui );
 				}
 			}

@@ -201,6 +201,9 @@ public:
 	static const idRegEntry RegisterVars[];
 	static const int		NumRegisterVars;
 
+	// TODO:  eviljoel:  Document
+	static bool idWindow::IsWindowToken( idToken& token );
+
 	void SetDC(idDeviceContext *d);
 
 	idDeviceContext*	GetDC ( void ) { return dc; }
@@ -246,7 +249,7 @@ public:
 	bool Contains(const idRectangle &sr, float x, float y);
 	const char *GetName() { return name; };
 
-	virtual bool Parse(idParser *src, bool rebuild = true);
+	virtual bool Parse(idParser *src, std::map<idStr, idWindow>& windowPatchMap, idToken& thisWindowName, bool rebuild = true);
 	virtual const char *HandleEvent(const sysEvent_t *event, bool *updateVisuals);
 	void	CalcRects(float x, float y);
 	virtual void Redraw(float x, float y);
@@ -446,6 +449,10 @@ protected:
 	idRegisterList regList;
 
 	idWinBool	hideCursor;
+
+private:
+	// TODO:  eviljoel:  Document
+	const std::set<char*> idWindow::WindowNames;
 };
 
 ID_INLINE void idWindow::AddDefinedVar( idWinVar* var ) {
