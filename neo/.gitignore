@@ -1,0 +1,17 @@
+.base
+base
+Debug
+scons.launch
+libgame.so
+scons.signatures.dblite
+site.conf
+logfunc.pyc
+read.pyc
+SDK.pyc
+Setup.pyc
+scons_utils.pyc
+/.cproject
+/.project
+/doom.x86
+/gamex86-base.so
+/gamex86-d3xp.so
