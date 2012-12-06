@@ -2146,7 +2146,7 @@ void idWindow::SetInitialState(const char *_name) {
 idWindow::Parse
 ================
 */
-bool idWindow::Parse( idParser *src, std::map<idStr, idWindow>& windowPatchMap, idToken& thisWindowName, bool rebuild) {
+bool idWindow::Parse( idParser *src, std::map<idStr, idParser*>& sourcePatchMap, idToken& thisWindowName, bool rebuild) {
 	idToken token, windowName, token3, token4, token5, token6, token7;
 	idStr work;
 
@@ -2161,7 +2161,7 @@ bool idWindow::Parse( idParser *src, std::map<idStr, idWindow>& windowPatchMap, 
 
 	namedEvents.DeleteContents( true );
 
-	SetInitialState(token);
+	SetInitialState(thisWindowName);
 
 	src->ExpectTokenString( "{" );
 	src->ExpectAnyToken( &token );
@@ -2179,196 +2179,191 @@ bool idWindow::Parse( idParser *src, std::map<idStr, idWindow>& windowPatchMap, 
 		// track what was parsed so we can maintain it for the guieditor
 		src->SetMarker ( );
 
-		if (IsWindowToken(token)) {
+		if ( IsWindowToken( token ) ) {
 
 			// See if this window has a patch
 			src->ExpectTokenType( TT_NAME, 0, &windowName );
-			idWindow* windowPatch = windowPatchMap[thisWindowName];
+			idParser* sourcePatch = sourcePatchMap[thisWindowName];
 
 			// Use idWindow in the windowPatchMap if a match is found
-			if ( windowPatch != NULL ) {
+			if ( *sourcePatch != NULL ) {
 
-				AddChild(windowPatch);
-				windowPatch->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = windowPatch;
-				drawWindows.Append(dwt);
+				// Skip the rest of this Window and ignore it.
+				// OPTIONAL:  We might want to go back later and and parse this for the window names so
+				//   we can explicitly include text from some sections.  We'll implement this change is it
+				//   is demanded.
+				// Original file must be properly formatted.
+				if ( src->SkipBracedSection() ) {
 
-				// Parse the rest of the idWindow and discard the result
-				/*idWindow *win = new idWindow(dc, gui);
-				SaveExpressionParseState();
-				std::map<idStr, idWindow> emptyWindowPatchMap;
-				win->Parse(src, emptyWindowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();*/
+					// Can't reuse source patches
+					sourcePatchMap.erase( thisWindowName );
 
-				// Discard the window we patched over
-				do {
-					src->ExpectAnyToken( &token);
+					// Replace the current source with the source from the patch.  Due to how method calls
+					//   work, when we return, the original src will be unaffected.
+					src = sourcePatch;
+					// We already know this defines an idWindow, so don't bother to validate
+					src->ExpectAnyToken( &token );
+					src->SetMarker();  // TODO:  How will this work with the GUI editor?
+					src->ExpectTokenType( TT_NAME, 0, &windowName );
 
-				} while(token == "}" && token.type == TT_PUNCTUATION);
-
-				int nestingLevel = 1;
-				while( nestingLevel > 0 ) {
-					if ( token == "{" && token.type == TT_PUNCTUATION ) {
-						nestingLevel++;
-					} else if ( token == "}" && token.type == TT_PUNCTUATION ) {
-						nestingLevel--;
-					}
+					// Can't reuse source patches
+					delete src;
 				}
 			}
-			else if ( token == "windowDef" || token == "animationDef" ) {
-				if (token == "animationDef") {
-					visible = false;
-					rect = idRectangle(0,0,0,0);
-				}
-				drawWin_t *dw = FindChildByName(windowName.c_str());
-				if (dw && dw->win) {
-					SaveExpressionParseState();
-					dw->win->Parse(src, windowPatchMap, windowName, rebuild);
-					RestoreExpressionParseState();
+		}
+
+		if ( token == "windowDef" || token == "animationDef" ) {
+			if (token == "animationDef") {
+				visible = false;
+				rect = idRectangle(0,0,0,0);
+			}
+			drawWin_t *dw = FindChildByName(windowName.c_str());
+			if (dw && dw->win) {
+				SaveExpressionParseState();
+				dw->win->Parse(src, sourcePatchMap, windowName, rebuild);
+				RestoreExpressionParseState();
+			} else {
+				idWindow *win = new idWindow(dc, gui);
+				SaveExpressionParseState();
+				win->Parse(src, sourcePatchMap, windowName, rebuild);
+				RestoreExpressionParseState();
+				win->SetParent(this);
+				dwt.simp = NULL;
+				dwt.win = NULL;
+				if (win->IsSimple()) {
+					idSimpleWindow *simple = new idSimpleWindow(win);
+					dwt.simp = simple;
+					drawWindows.Append(dwt);
+					delete win;
 				} else {
-					idWindow *win = new idWindow(dc, gui);
-					SaveExpressionParseState();
-					win->Parse(src, windowPatchMap, windowName, rebuild);
-					RestoreExpressionParseState();
-					win->SetParent(this);
-					dwt.simp = NULL;
-					dwt.win = NULL;
-					if (win->IsSimple()) {
-						idSimpleWindow *simple = new idSimpleWindow(win);
-						dwt.simp = simple;
-						drawWindows.Append(dwt);
-						delete win;
-					} else {
-						AddChild(win);
-						SetFocus(win,false);
-						dwt.win = win;
-						drawWindows.Append(dwt);
-					}
+					AddChild(win);
+					SetFocus(win,false);
+					dwt.win = win;
+					drawWindows.Append(dwt);
 				}
+			}
 
-			}
-			else if ( token == "editDef" ) {
-				idEditWindow *win = new idEditWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "choiceDef" ) {
-				idChoiceWindow *win = new idChoiceWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "sliderDef" ) {
-				idSliderWindow *win = new idSliderWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "markerDef" ) {
-				idMarkerWindow *win = new idMarkerWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "bindDef" ) {
-				idBindWindow *win = new idBindWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "listDef" ) {
-				idListWindow *win = new idListWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "fieldDef" ) {
-				idFieldWindow *win = new idFieldWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "renderDef" ) {
-				idRenderWindow *win = new idRenderWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "gameSSDDef" ) {
-				idGameSSDWindow *win = new idGameSSDWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "gameBearShootDef" ) {
-				idGameBearShootWindow *win = new idGameBearShootWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
-			else if ( token == "gameBustOutDef" ) {
-				idGameBustOutWindow *win = new idGameBustOutWindow(dc, gui);
-				SaveExpressionParseState();
-				win->Parse(src, windowPatchMap, windowName, rebuild);
-				RestoreExpressionParseState();
-				AddChild(win);
-				win->SetParent(this);
-				dwt.simp = NULL;
-				dwt.win = win;
-				drawWindows.Append(dwt);
-			}
+		}
+		else if ( token == "editDef" ) {
+			idEditWindow *win = new idEditWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "choiceDef" ) {
+			idChoiceWindow *win = new idChoiceWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "sliderDef" ) {
+			idSliderWindow *win = new idSliderWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "markerDef" ) {
+			idMarkerWindow *win = new idMarkerWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "bindDef" ) {
+			idBindWindow *win = new idBindWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "listDef" ) {
+			idListWindow *win = new idListWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "fieldDef" ) {
+			idFieldWindow *win = new idFieldWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "renderDef" ) {
+			idRenderWindow *win = new idRenderWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "gameSSDDef" ) {
+			idGameSSDWindow *win = new idGameSSDWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "gameBearShootDef" ) {
+			idGameBearShootWindow *win = new idGameBearShootWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
+		}
+		else if ( token == "gameBustOutDef" ) {
+			idGameBustOutWindow *win = new idGameBustOutWindow(dc, gui);
+			SaveExpressionParseState();
+			win->Parse(src, sourcePatchMap, windowName, rebuild);
+			RestoreExpressionParseState();
+			AddChild(win);
+			win->SetParent(this);
+			dwt.simp = NULL;
+			dwt.win = win;
+			drawWindows.Append(dwt);
 		}
 // 
 //  added new onEvent

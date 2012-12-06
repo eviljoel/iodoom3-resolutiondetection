@@ -249,7 +249,7 @@ public:
 	bool Contains(const idRectangle &sr, float x, float y);
 	const char *GetName() { return name; };
 
-	virtual bool Parse(idParser *src, std::map<idStr, idWindow>& windowPatchMap, idToken& thisWindowName, bool rebuild = true);
+	virtual bool Parse(idParser *src, std::map<idStr, idParser*>& sourcePatchMap, idToken& thisWindowName, bool rebuild = true);
 	virtual const char *HandleEvent(const sysEvent_t *event, bool *updateVisuals);
 	void	CalcRects(float x, float y);
 	virtual void Redraw(float x, float y);

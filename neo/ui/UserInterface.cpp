@@ -281,15 +281,11 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 		return false;
 	}
 
+	std::map<idStr, idParser*> sourcePatchMap;
+	idStrList patchSources;
+	InitPatchFiles( patchPaths, sourcePatchMap, patchSources );
+
 	loading = true;
-
-	std::map<idStr, idWindow> windowPatchMap = InitPatchFiles( patchPaths, rebuild );
-
-	// Don't support rebuild == false with GUI patching because rebuild is not set to false anywhere in the code anyway.
-	//   If anyone wants me to support this, contact eviljoel from the iodoom3 repository.
-	if ( !rebuild && windowPatchMap.size() > 0 ) {
-		idLib::common->FatalError( "idUserInterfaceLocal::InitFromFile: GUI patching is not supported when not rebuilding" );
-	}
 
 	if ( rebuild ) {
 		delete desktop;
@@ -313,17 +309,27 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 			if ( idStr::Icmp( token, "windowDef" ) == 0 ) {
 
 				// Read the window identifier
-				src.ExpectTokenType( TT_NAME, 0, &token );
+				idToken windowName;
+				src.ExpectTokenType( TT_NAME, 0, &windowName );
 
 				// See if there is a patch for the whole Window
-				idWindow matchingPatch = windowPatchMap[token];
-				if ( matchingPatch != NULL ) {
-					delete desktop;
-					desktop = matchingPatch;
+				idParser* sourcePatch = sourcePatchMap[token];
+				if ( sourcePatch != NULL ) {
+
+					sourcePatch->ReadToken( &token );
+
+					// The root Window is hard coded as a windowDef.  Make sure the patch is for the same.
+					if ( idStr::Icmp( token, "windowDef" ) == 0 ) {
+						sourcePatch->ExpectTokenType( TT_NAME, 0, &token );
+						src = *sourcePatch;
+					} else {
+						common->Warning( "The root window must be a windowDef.  Ignoring patch for '%s'.", windowName );
+						sourcePatch->UnreadToken( &token );
+					}
 				}
 
 				desktop->SetDC( &uiManagerLocal.dc );
-				if ( desktop->Parse( &src, windowPatchMap, token, rebuild ) ) {
+				if ( desktop->Parse( &src, sourcePatchMap, token, rebuild ) ) {
 					desktop->SetFlag( WIN_DESKTOP );
 					desktop->FixupParms();
 				}
@@ -352,6 +358,8 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 	}
 
 	loading = false;
+
+	DeletePatchData( sourcePatchMap, patchSources );
 
 	return true; 
 }
@@ -667,9 +675,7 @@ void idUserInterfaceLocal::SetCursor( float x, float y ) {
 idUserInterfaceLocal::InitPatchFiles
 ==============
  */
-std::map<idStr, idWindow> idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, bool rebuild ) {
-
-	std::map<idStr, idWindow> windowPatchMap;
+void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, std::map<idStr, idParser*>& sourcePatchMap, idStrList& patchSources ) {
 
 	int patchPathCount = patchPaths.Num();
 	for ( int patchPathIndex; patchPathIndex < patchPathCount; patchPathIndex++ ) {
@@ -678,57 +684,43 @@ std::map<idStr, idWindow> idUserInterfaceLocal::InitPatchFiles( idStrList& patch
 		// Load the timestamp so reload guis will work correctly
 		fileSystem->ReadFile( patchPath, NULL, &timeStamp );
 
-		idParser src( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
-		src.LoadFile( patchPath );
+		idParser patchFileParser( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
+		patchFileParser.LoadFile( patchPath );
 
-		if ( src.IsLoaded() ) {
-			idToken token;
-			while( src.ReadToken( &token ) ) {
+		if ( patchFileParser.IsLoaded() ) {
+			idToken windowTypeToken;
+			while( patchFileParser.ReadToken( &windowTypeToken ) ) {
 
-				idWindow* window;
+				// Make sure the first token describes a window
+				if ( idWindow::IsWindowToken(windowTypeToken) ) {
 
-				if ( idStr::Icmp( token, "animationDef" ) == 0 ) {
-					window = new idWindow( this );  // TODO:  I don't know what to do here!
-				} else if ( idStr::Icmp( token, "bindDef" ) == 0 ) {
-					window = new idBindWindow( this );
-				} else if ( idStr::Icmp( token, "choiceDef" ) == 0 ) {
-					window = new idChoiceWindow( this );
-				} else if ( idStr::Icmp( token, "editDef" ) == 0 ) {
-					window = new idEditWindow( this );
-				} else if ( idStr::Icmp( token, "fieldDef" ) == 0 ) {
-					window = new idFieldWindow( this );
-				} else if ( idStr::Icmp( token, "gameBearShootDef" ) == 0 ) {
-					window = new idGameBearShootWindow( this );
-				} else if ( idStr::Icmp( token, "gameBustOutDef" ) == 0 ) {
-					window = new idGameBustOutWindow( this );
-				} else if ( idStr::Icmp( token, "gameSSDDef" ) == 0 ) {
-					window = new idGameSSDWindow( this );
-				} else if ( idStr::Icmp( token, "listDef" ) == 0 ) {
-					window = new idListWindow( this );
-				} else if ( idStr::Icmp( token, "markerDef" ) == 0 ) {
-					window = new idMarkerWindow( this );
-				} else if ( idStr::Icmp( token, "renderDef" ) == 0 ) {
-					window = new idRenderWindow( this );
-				} else if ( idStr::Icmp( token, "sliderDef" ) == 0 ) {
-					window = new idSliderWindow( this );
-				} else if ( idStr::Icmp( token, "windowDef" ) == 0 ) {
-					window = new idWindow( this );
-					// TODO:  How do we do the FindChildByName stuff???
-				}
+					// Error if the second token does not describe the Window
+					idToken windowNameToken = new idToken();
+					if ( !patchFileParser.ExpectTokenType( TT_NAME, 0, &windowNameToken ) ) {
+						common->Warning(
+								"Window name expected while loading GUI patch source: '%s'", patchPath );
+					} else {
 
-				if ( window != NULL ) {
-					// Read the window identifier
-					src.ExpectTokenType( TT_NAME, 0, &token );
+						// LoadMemory below expects a null terminated C string.
+						idStr patchSource = new idStr();
+						// TODO:  There is probably a faster way to do this:
+						patchSource.Append( windowTypeToken );
+						patchSource.Append( " " );  // TODO:  eviljoel:  Is this necessary?  windowTypeToken might still have whitespace.
+						patchSource.Append( windowNameToken );
+						patchSource.Append( " " );  // TODO:  eviljoel:  Is this necessary?  windowTypeToken might still have whitespace.
+						idStr out;
+						patchSource.Append( patchFileParser.ParseBracedSection( out, 0 ) );
 
-					// See if there is a patch for the whole Window
-					idWindow matchingPatch = windowPatchMap[token];
-					if ( matchingPatch != NULL ) {
-						window = matchingPatch;
-					}
+						patchSources.Append( patchSource );
 
-					window->SetDC( &uiManagerLocal.dc );
-					if ( !window->Parse( &src, windowPatchMap, token, rebuild ) ) {
-						common->Warning( "Error parsing gui patch: '%s'", patchPath );
+						idParser* patchSourceParser =
+								&( new idParser( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT ) );
+						// TODO:  eviljoel:  idParser mostly just uses the filename for error messages.  (It is
+						//   also passed it on to idLexer.)  Maybe we should pass another parameter explaining what
+						//   part of the patch file we are working with.
+						patchSourceParser->LoadMemory( patchSource.c_str(), patchSource.Length(), patchPath );
+
+						sourcePatchMap[windowNameToken] = patchSourceParser;
 					}
 				}
 			}
@@ -736,6 +728,23 @@ std::map<idStr, idWindow> idUserInterfaceLocal::InitPatchFiles( idStrList& patch
 			common->Warning( "Couldn't load gui patch: '%s'", patchPath );
 		}
 	}
+}
 
-	return windowPatchMap;
+/*
+==============
+idUserInterfaceLocal::DeletePatchData
+==============
+ */
+void idUserInterfaceLocal::DeletePatchData( std::map<idStr, idParser*>& sourcePatchMap, idStrList& patchSources ) {
+
+	for ( std::map<idStr, idParser*>::iterator sourcePatchIterator = sourcePatchMap.begin();
+			sourcePatchIterator != sourcePatchMap.end(); sourcePatchIterator++ ) {
+		delete sourcePatchIterator->first();
+		delete *sourcePatchIterator->second();
+	}
+
+	int patchSourceLength = patchSources.Num();
+	for ( int patchSourceIndex = 0; patchSourceIndex < patchSourceLength; patchSourceIndex++ ) {
+		delete patchSources[patchSourceIndex];
+	}
 }
