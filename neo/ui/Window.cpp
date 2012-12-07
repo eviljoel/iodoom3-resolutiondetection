@@ -58,10 +58,9 @@ idCVar idWindow::gui_edit( "gui_edit", "0", CVAR_GUI | CVAR_BOOL, "" );
 
 extern idCVar r_skipGuiShaders;		// 1 = don't render any gui elements on surfaces
 
-const static std::set<char*> idWindow::WindowNames = {
-	"animationDef", "bindDef", "choiceDef", "editDef", "fieldDef", "gameBearShootDef", "gameBustOutDef",
-	"gameSSDDef", "listDef", "markerDef", "renderDef", "sliderDef", "windowDef"
-};
+char* windowNames[] = { "animationDef", "bindDef", "choiceDef", "editDef", "fieldDef", "gameBearShootDef",
+	"gameBustOutDef", "gameSSDDef", "listDef", "markerDef", "renderDef", "sliderDef", "windowDef" };
+const static std::set<char*> idWindow::WindowNames( windowNames, windowNames + sizeof( windowNames ) );
 
 //  made RegisterVars a member of idWindow
 const idRegEntry idWindow::RegisterVars[] = {
@@ -120,7 +119,7 @@ idWindow::IsWindowToken()
 static bool idWindow::IsWindowToken( idToken& token ) {
 	// TODO:  eviljoel:  Smacdo says I shouldn't be casting like this and that I really
 	//   shouldn't have to cast this in the first place.  I'll figure it out later.
-	return WindowNames.find( const_cast<char*>( &token.c_str() ) ) != WindowNames.end();
+	return WindowNames.find( token.c_str() ) != WindowNames.end();
 }
 
 /*
@@ -2186,7 +2185,7 @@ bool idWindow::Parse( idParser *src, std::map<idStr, idParser*>& sourcePatchMap,
 			idParser* sourcePatch = sourcePatchMap[thisWindowName];
 
 			// Use idWindow in the windowPatchMap if a match is found
-			if ( *sourcePatch != NULL ) {
+			if ( sourcePatch != NULL ) {
 
 				// Skip the rest of this Window and ignore it.
 				// OPTIONAL:  We might want to go back later and and parse this for the window names so

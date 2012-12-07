@@ -202,7 +202,7 @@ public:
 	static const int		NumRegisterVars;
 
 	// TODO:  eviljoel:  Document
-	static bool idWindow::IsWindowToken( idToken& token );
+	static bool IsWindowToken( idToken& token );
 
 	void SetDC(idDeviceContext *d);
 
@@ -452,7 +452,7 @@ protected:
 
 private:
 	// TODO:  eviljoel:  Document
-	const std::set<char*> idWindow::WindowNames;
+	const static std::set<char*> WindowNames;
 };
 
 ID_INLINE void idWindow::AddDefinedVar( idWinVar* var ) {

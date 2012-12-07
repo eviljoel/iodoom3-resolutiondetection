@@ -323,7 +323,7 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 						sourcePatch->ExpectTokenType( TT_NAME, 0, &token );
 						src = *sourcePatch;
 					} else {
-						common->Warning( "The root window must be a windowDef.  Ignoring patch for '%s'.", windowName );
+						common->Warning( "The root window must be a windowDef.  Ignoring patch for '%s'.", windowName.c_str() );
 						sourcePatch->UnreadToken( &token );
 					}
 				}
@@ -702,23 +702,23 @@ void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, std::map<idStr
 					} else {
 
 						// LoadMemory below expects a null terminated C string.
-						idStr patchSource = new idStr();
+						idStr* patchSource = new idStr();
 						// TODO:  There is probably a faster way to do this:
-						patchSource.Append( windowTypeToken );
-						patchSource.Append( " " );  // TODO:  eviljoel:  Is this necessary?  windowTypeToken might still have whitespace.
-						patchSource.Append( windowNameToken );
-						patchSource.Append( " " );  // TODO:  eviljoel:  Is this necessary?  windowTypeToken might still have whitespace.
+						patchSource->Append( windowTypeToken );
+						patchSource->Append( " " );  // TODO:  eviljoel:  Is this necessary?  windowTypeToken might still have whitespace.
+						patchSource->Append( windowNameToken );
+						patchSource->Append( " " );  // TODO:  eviljoel:  Is this necessary?  windowTypeToken might still have whitespace.
 						idStr out;
-						patchSource.Append( patchFileParser.ParseBracedSection( out, 0 ) );
+						patchSource->Append( patchFileParser.ParseBracedSection( out, 0 ) );
 
-						patchSources.Append( patchSource );
+						patchSources.Append( *patchSource );
 
 						idParser* patchSourceParser =
-								&( new idParser( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT ) );
+								new idParser( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
 						// TODO:  eviljoel:  idParser mostly just uses the filename for error messages.  (It is
 						//   also passed it on to idLexer.)  Maybe we should pass another parameter explaining what
 						//   part of the patch file we are working with.
-						patchSourceParser->LoadMemory( patchSource.c_str(), patchSource.Length(), patchPath );
+						patchSourceParser->LoadMemory( patchSource->c_str(), patchSource->Length(), patchPath );
 
 						sourcePatchMap[windowNameToken] = patchSourceParser;
 					}
@@ -739,8 +739,8 @@ void idUserInterfaceLocal::DeletePatchData( std::map<idStr, idParser*>& sourcePa
 
 	for ( std::map<idStr, idParser*>::iterator sourcePatchIterator = sourcePatchMap.begin();
 			sourcePatchIterator != sourcePatchMap.end(); sourcePatchIterator++ ) {
-		delete sourcePatchIterator->first();
-		delete *sourcePatchIterator->second();
+		delete sourcePatchIterator->first;
+		delete sourcePatchIterator->second;
 	}
 
 	int patchSourceLength = patchSources.Num();
