@@ -43,7 +43,7 @@ If you have questions concerning this license or the applicable additional terms
 #include <map>
 #include <set>
 #include <sstream>
-#include <SDL/SDL.h>
+#include <SDL.h>
 
 // Vista OpenGL wrapper check
 #ifdef _WIN32
@@ -2200,12 +2200,6 @@ void R_InitAvailableVidModes( void ) {
 		modeIndex++;
 		foundModeIndex++;
 	}
-
-	// TODO:  We quit the SDL video subsystem now because it conflicts with R_InitOpenGL() on Linux.  If 
-	//   SDL_QuitSubSystem( SDL_INIT_VIDEO ) is called after R_InitOpenGL(), SDL_QuitSubSystem() seg faults.
-	//   Remove the following line and enable the commented call to SDL_QuitSubSystem() in Shutdown() after 
-	//   Icculus converts the codebase to SDL.
-	SDL_QuitSubSystem( SDL_INIT_VIDEO );
 }
 
 /*
@@ -2312,10 +2306,6 @@ void idRenderSystemLocal::Init( void ) {
 
 	common->Printf( "------- Initializing renderSystem --------\n" );
 
-	// Init the video subsystem separately to make this code more modular.
-	//   Someone might eventually want to use AALib for graphics output or something.
-	SDL_InitSubSystem( SDL_INIT_VIDEO );
-
 	// clear all our internal state
 	viewCount = 1;		// so cleared structures never match viewCount
 	// we used to memset tr, but now that it is a class, we can't, so
@@ -2412,9 +2402,6 @@ void idRenderSystemLocal::Shutdown( void ) {
 	Clear();
 
 	ShutdownOpenGL();
-
-	// TODO:  This call conflicts with R_InitOpenGL().  See comment in R_InitAvailableVidModes().
-	//SDL_QuitSubSystem( SDL_INIT_VIDEO );
 }
 
 /*
