@@ -1,0 +1,9 @@
+/.base
+/.externalToolBuilders
+/.cproject
+/.project
+/doom.x86
+/gamex86-base.so
+/gamex86-d3xp.so
+/libgame.so
+/scons.signatures.dblite

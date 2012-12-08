@@ -1,0 +1,18 @@
+choiceDef OS2Primary {
+	rect		210, 1, 100, 14
+	choices		"gui::system_resolution_desc"
+	regValues	"gui::system_resolution_modes"
+	cvar		"r_mode"
+	updateGroup	render
+	choiceType	1
+	font		"fonts/bank"
+	textscale	0.25
+	textalign	1
+	textaligny	-6
+	forecolor	0.6, 0.8, 0.8, 1
+
+	onAction {
+		set "OSWarning::forecolor" "1 1 1 1" ;
+		set "ResetSystemBtnText::vidrestrt" "1" ;
+	}				
+}
