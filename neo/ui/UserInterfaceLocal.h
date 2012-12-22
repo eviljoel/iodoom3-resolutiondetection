@@ -93,9 +93,9 @@ public:
 
 private:
 	// TODO:  eviljoel:  Document
-	void						InitPatchFiles( idStrList& patchPaths, std::map<idStr, idParser*>& sourcePatchMap, idStrList& patchSources );
+	void						InitPatchFiles( idStrList& patchPaths, std::map<idStr, idParser*>& sourcePatchMap );
 	// TODO:  eviljoel:  Document
-	void						DeletePatchData( std::map<idStr, idParser*>& sourcePatchMap, idStrList& patchSources );
+	void						DeletePatchData( std::map<idStr, idParser*>& sourcePatchMap );
 
 	bool						active;
 	bool						loading;

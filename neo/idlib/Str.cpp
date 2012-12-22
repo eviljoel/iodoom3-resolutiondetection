@@ -1063,6 +1063,23 @@ bool idStr::HasUpper( const char *s ) {
 	return false;
 }
 
+bool idStr::operator<( const idStr& string ) const {
+	char* chars0 = data;
+	char* chars1 = string.data;
+
+	char char0, char1;
+	bool lessThan;
+	do {
+		char0 = *(chars0++);
+		char1 = *(chars1++);
+
+		lessThan = char0 < char1;
+
+	} while( char0 && char1 && char0 == char1 );
+
+	return lessThan;
+}
+
 /*
 ================
 idStr::Cmp

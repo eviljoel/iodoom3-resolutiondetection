@@ -167,6 +167,9 @@ public:
 	friend bool			operator!=( const idStr &a, const char *b );
 	friend bool			operator!=( const char *a, const idStr &b );
 
+						// case senstive compare
+	bool				operator<( const idStr& string ) const;
+
 						// case sensitive compare
 	int					Cmp( const char *text ) const;
 	int					Cmpn( const char *text, int n ) const;

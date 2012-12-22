@@ -202,7 +202,7 @@ public:
 	static const int		NumRegisterVars;
 
 	// TODO:  eviljoel:  Document
-	static bool IsWindowToken( idToken& token );
+	static const bool IsWindowToken( idToken& token );
 
 	void SetDC(idDeviceContext *d);
 
@@ -450,9 +450,12 @@ protected:
 
 	idWinBool	hideCursor;
 
+	// TODO:  eviljoel:  Should we really have a private section here?
 private:
 	// TODO:  eviljoel:  Document
-	const static std::set<char*> WindowNames;
+	static const idStr WindowNameArray[];
+	// TODO:  eviljoel:  Document
+	static const std::set<idStr> WindowNames;
 };
 
 ID_INLINE void idWindow::AddDefinedVar( idWinVar* var ) {
