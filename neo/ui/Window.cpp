@@ -58,13 +58,8 @@ idCVar idWindow::gui_edit( "gui_edit", "0", CVAR_GUI | CVAR_BOOL, "" );
 
 extern idCVar r_skipGuiShaders;		// 1 = don't render any gui elements on surfaces
 
-// TODO:  eviljoel:  Convert to ID's string hashMap
-static const idStr idWindow::WindowNameArray[] = { idStr("animationDef"), idStr("bindDef"), idStr("choiceDef"),
-		idStr("editDef"), idStr("fieldDef"), idStr("gameBearShootDef"), idStr("gameBustOutDef"),
-		idStr("gameSSDDef"), idStr("listDef"), idStr("markerDef"), idStr("renderDef"),
-		idStr("sliderDef"), idStr("windowDef") };
-static const std::set<idStr> idWindow::WindowNames( WindowNameArray, WindowNameArray +
-		( sizeof( WindowNameArray ) / sizeof( WindowNameArray[0] ) ) );
+static bool idWindow::Exists = true;
+static const idHashTable<bool> idWindow::WindowNames = SetupWindowNamesHashTable();
 
 //  made RegisterVars a member of idWindow
 const idRegEntry idWindow::RegisterVars[] = {
@@ -117,12 +112,38 @@ const char *idWindow::ScriptNames[] = {
 
 /*
 ===============
+idWindow::SetupWindowNamesHashTable()
+===============
+*/
+static const idHashTable<bool> idWindow::SetupWindowNamesHashTable() {
+
+	idHashTable<bool> windowNames(16);
+
+	windowNames.Set("animationDef", Exists);
+	windowNames.Set("bindDef", Exists);
+	windowNames.Set("choiceDef", Exists);
+	windowNames.Set("editDef", Exists);
+	windowNames.Set("fieldDef", Exists);
+	windowNames.Set("gameBearShootDef", Exists);
+	windowNames.Set("gameBustOutDef", Exists);
+	windowNames.Set("gameSSDDef", Exists);
+	windowNames.Set("listDef", Exists);
+	windowNames.Set("markerDef", Exists);
+	windowNames.Set("renderDef", Exists);
+	windowNames.Set("sliderDef", Exists);
+	windowNames.Set("windowDef", Exists);
+
+	return windowNames;
+}
+
+/*
+===============
 idWindow::IsWindowToken()
 ===============
 */
 static const bool idWindow::IsWindowToken( idStr& token ) {
 
-	return WindowNames.find( token ) != WindowNames.end();
+	return WindowNames.Get(token, NULL);
 }
 
 /*

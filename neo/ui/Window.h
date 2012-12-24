@@ -452,10 +452,13 @@ protected:
 
 	// TODO:  eviljoel:  Should we really have a private section here?
 private:
-	// A array of idStrs that list all the idWindow types
-	static const idStr WindowNameArray[];
-	// A set used for efficient checking if an idStr describes an idWindow type
-	static const std::set<idStr> WindowNames;
+	// Used to hold a static reference to true.  Used as a value of a Map when a Map is used as a Set.
+	static bool Exists;
+	// An idHashTable used as a Set used for efficient checking if an idStr describes an idWindow type
+	static const idHashTable<bool> WindowNames;
+	// Builds the idHashTable which is used for efficient checking if an idStr describes an idWindow
+	//   type
+	static const idHashTable<bool> SetupWindowNamesHashTable();
 };
 
 ID_INLINE void idWindow::AddDefinedVar( idWinVar* var ) {
