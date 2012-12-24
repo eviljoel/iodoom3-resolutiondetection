@@ -281,7 +281,7 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 		return false;
 	}
 
-	std::map<idStr, idParser*> sourcePatchMap;
+	idHashTable<idParser*> sourcePatchMap;
 	InitPatchFiles( patchPaths, sourcePatchMap );
 
 	loading = true;
@@ -315,15 +315,14 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 				idParser* source = &src;
 
 				// See if there is a patch for the whole Window
-				std::map<idStr, idParser*>::iterator sourcePatchIterator = sourcePatchMap.find( windowName );
-				if ( sourcePatchIterator != sourcePatchMap.end() ) {
-					idParser* sourcePatch = sourcePatchIterator->second;
+				idParser*** sourcePatch;
+				if ( sourcePatchMap.Get( windowName, sourcePatch ) ) {
 
 					// Save the current source
 					originalSource = source;
 
 					// Replace the current source with the source from the patch.
-					source = sourcePatch;
+					source = **sourcePatch;
 
 					// We already know this defines an idWindow, so don't bother to validate
 					source->ExpectAnyToken( &token );
@@ -339,14 +338,14 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 						if ( originalSource->SkipBracedSection() ) {
 
 							// Can't reuse source patches
-							sourcePatchMap.erase( windowName );
+							sourcePatchMap.Remove( windowName );
 
 							source->ExpectTokenType( TT_NAME, 0, &windowName );
 						}
 
 					} else {
 						common->Warning( "The root window must be a windowDef.  Ignoring patch for '%s'.", windowName.c_str() );
-						sourcePatch->UnreadToken( &token );
+						(**sourcePatch)->UnreadToken( &token );
 					}
 				}
 
@@ -706,7 +705,7 @@ void idUserInterfaceLocal::SetCursor( float x, float y ) {
 idUserInterfaceLocal::InitPatchFiles
 ==============
  */
-void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, std::map<idStr, idParser*>& sourcePatchMap ) {
+void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, idHashTable<idParser*>& sourcePatchMap ) {
 
 	int patchPathCount = patchPaths.Num();
 	idStr patchSourceString;  // Defined out here to avoid object creation.
@@ -754,12 +753,12 @@ void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, std::map<idStr
 						patchSourceParser->LoadMemory( patchSource, patchSourceLength - 1, patchPath );
 
 						// Erase the existing patch if applicable
-						std::map<idStr, idParser*>::iterator sourcePatchIterator = sourcePatchMap.find( windowNameToken );
-						if ( sourcePatchIterator != sourcePatchMap.end() ) {
-							delete sourcePatchIterator->second;
+						idParser*** existingPatch;
+						if ( sourcePatchMap.Get( windowNameToken, existingPatch ) ) {
+							delete **existingPatch;
 						}
 
-						sourcePatchMap[windowNameToken] = patchSourceParser;
+						sourcePatchMap.Set( windowNameToken, patchSourceParser );
 					}
 				}
 			}
@@ -774,11 +773,13 @@ void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, std::map<idStr
 idUserInterfaceLocal::DeletePatchData
 ==============
  */
-void idUserInterfaceLocal::DeletePatchData( std::map<idStr, idParser*>& sourcePatchMap ) {
+void idUserInterfaceLocal::DeletePatchData( idHashTable<idParser*>& sourcePatchMap ) {
 
-	for ( std::map<idStr, idParser*>::iterator sourcePatchIterator = sourcePatchMap.begin();
-			sourcePatchIterator != sourcePatchMap.end(); sourcePatchIterator++ ) {
-		delete sourcePatchIterator->second;
-		sourcePatchMap.erase( sourcePatchIterator->first );
+	const int sourcePatchCount = sourcePatchMap.Num();
+	for ( int sourcePatchIndex = 0; sourcePatchIndex < sourcePatchCount; sourcePatchIndex++ ) {
+		idParser** sourcePatch = sourcePatchMap.GetIndex( sourcePatchIndex );
+		delete *sourcePatch;
 	}
+
+	sourcePatchMap.Clear();
 }

@@ -143,7 +143,7 @@ idWindow::IsWindowToken()
 */
 static const bool idWindow::IsWindowToken( idStr& token ) {
 
-	return WindowNames.Get(token, NULL);
+	return WindowNames.Get( token );
 }
 
 /*
@@ -2169,7 +2169,7 @@ void idWindow::SetInitialState(const char *_name) {
 idWindow::Parse
 ================
 */
-bool idWindow::Parse( idParser *src, std::map<idStr, idParser*>& sourcePatchMap, idToken& thisWindowName, bool rebuild) {
+bool idWindow::Parse( idParser *src, idHashTable<idParser*>& sourcePatchMap, idToken& thisWindowName, bool rebuild) {
 	idToken token, windowName, token3, token4, token5, token6, token7;
 	idStr work;
 
@@ -2210,9 +2210,8 @@ bool idWindow::Parse( idParser *src, std::map<idStr, idParser*>& sourcePatchMap,
 			src->ExpectTokenType( TT_NAME, 0, &windowName );
 
 			// Use idWindow in the windowPatchMap if a match is found
-			std::map<idStr, idParser*>::iterator sourcePatchMapIterator = sourcePatchMap.find( windowName );
-			if ( sourcePatchMapIterator != sourcePatchMap.end() ) {
-				idParser* sourcePatch = sourcePatchMapIterator->second;
+			idParser*** sourcePatch;
+			if ( sourcePatchMap.Get( windowName, sourcePatch ) ) {
 
 				// Skip the rest of this Window and ignore it.
 				// OPTIONAL:  We might want to go back later and and parse this for the window names so
@@ -2222,13 +2221,13 @@ bool idWindow::Parse( idParser *src, std::map<idStr, idParser*>& sourcePatchMap,
 				if ( src->SkipBracedSection() ) {
 
 					// Can't reuse source patches
-					sourcePatchMap.erase( windowName );
+					sourcePatchMap.Remove( windowName );
 
 					// Save the current source
 					originalSource = src;
 
 					// Replace the current source with the source from the patch.
-					src = sourcePatch;
+					src = **sourcePatch;
 					// We already know this defines an idWindow, so don't bother to validate
 					src->ExpectAnyToken( &token );
 					src->SetMarker();  // TODO:  eviljoel:  How will this work with the GUI editor?

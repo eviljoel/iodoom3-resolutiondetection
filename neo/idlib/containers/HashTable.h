@@ -250,6 +250,7 @@ ID_INLINE Type *idHashTable<Type>::GetIndex( int index ) const {
 	int			count;
 	int			i;
 
+	// TODO:  eviljoel:  Consider correcting this to index >= numentries
 	if ( ( index < 0 ) || ( index > numentries ) ) {
 		assert( 0 );
 		return NULL;

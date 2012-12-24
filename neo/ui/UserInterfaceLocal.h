@@ -94,9 +94,9 @@ public:
 private:
 	// Opens all the files specified in patchPaths and populates the sourcePatchMap.  The Map key is the
 	//   root idWindow name and the value is an idParser based on the root idWindow.
-	void						InitPatchFiles( idStrList& patchPaths, std::map<idStr, idParser*>& sourcePatchMap );
+	void						InitPatchFiles( idStrList& patchPaths, idHashTable<idParser*>& sourcePatchMap );
 	// Deletes any unused keys and patches in the Map.
-	void						DeletePatchData( std::map<idStr, idParser*>& sourcePatchMap );
+	void						DeletePatchData( idHashTable<idParser*>& sourcePatchMap );
 
 	bool						active;
 	bool						loading;
