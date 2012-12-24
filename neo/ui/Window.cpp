@@ -58,7 +58,7 @@ idCVar idWindow::gui_edit( "gui_edit", "0", CVAR_GUI | CVAR_BOOL, "" );
 
 extern idCVar r_skipGuiShaders;		// 1 = don't render any gui elements on surfaces
 
-// TODO:  Convert to ID's string hashMap
+// TODO:  eviljoel:  Convert to ID's string hashMap
 static const idStr idWindow::WindowNameArray[] = { idStr("animationDef"), idStr("bindDef"), idStr("choiceDef"),
 		idStr("editDef"), idStr("fieldDef"), idStr("gameBearShootDef"), idStr("gameBustOutDef"),
 		idStr("gameSSDDef"), idStr("listDef"), idStr("markerDef"), idStr("renderDef"),
@@ -120,7 +120,7 @@ const char *idWindow::ScriptNames[] = {
 idWindow::IsWindowToken()
 ===============
 */
-static const bool idWindow::IsWindowToken( idToken& token ) {
+static const bool idWindow::IsWindowToken( idStr& token ) {
 
 	return WindowNames.find( token ) != WindowNames.end();
 }
@@ -2210,7 +2210,7 @@ bool idWindow::Parse( idParser *src, std::map<idStr, idParser*>& sourcePatchMap,
 					src = sourcePatch;
 					// We already know this defines an idWindow, so don't bother to validate
 					src->ExpectAnyToken( &token );
-					src->SetMarker();  // TODO:  How will this work with the GUI editor?
+					src->SetMarker();  // TODO:  eviljoel:  How will this work with the GUI editor?
 					src->ExpectTokenType( TT_NAME, 0, &windowName );
 				}
 			}

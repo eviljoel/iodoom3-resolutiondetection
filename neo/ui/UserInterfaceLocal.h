@@ -92,9 +92,10 @@ public:
 	idStr						&GetReturnCmd() { return returnCmd; };
 
 private:
-	// TODO:  eviljoel:  Document
+	// Opens all the files specified in patchPaths and populates the sourcePatchMap.  The Map key is the
+	//   root idWindow name and the value is an idParser based on the root idWindow.
 	void						InitPatchFiles( idStrList& patchPaths, std::map<idStr, idParser*>& sourcePatchMap );
-	// TODO:  eviljoel:  Document
+	// Deletes any unused keys and patches in the Map.
 	void						DeletePatchData( std::map<idStr, idParser*>& sourcePatchMap );
 
 	bool						active;

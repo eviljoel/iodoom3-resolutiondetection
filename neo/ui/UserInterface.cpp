@@ -307,20 +307,43 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 		while( src.ReadToken( &token ) ) {
 			if ( idStr::Icmp( token, "windowDef" ) == 0 ) {
 
+				idParser* originalSource = NULL;
+
 				// Read the window identifier
 				idToken windowName;
 				src.ExpectTokenType( TT_NAME, 0, &windowName );
+				idParser* source = &src;
 
 				// See if there is a patch for the whole Window
-				std::map<idStr, idParser*>::iterator sourcePatchMapIterator = sourcePatchMap.find( token );
-				if ( sourcePatchMapIterator != sourcePatchMap.end() ) {
-					idParser* sourcePatch = sourcePatchMapIterator->second;
-					sourcePatch->ReadToken( &token );
+				std::map<idStr, idParser*>::iterator sourcePatchIterator = sourcePatchMap.find( windowName );
+				if ( sourcePatchIterator != sourcePatchMap.end() ) {
+					idParser* sourcePatch = sourcePatchIterator->second;
+
+					// Save the current source
+					originalSource = source;
+
+					// Replace the current source with the source from the patch.
+					source = sourcePatch;
+
+					// We already know this defines an idWindow, so don't bother to validate
+					source->ExpectAnyToken( &token );
 
 					// The root Window is hard coded as a windowDef.  Make sure the patch is for the same.
 					if ( idStr::Icmp( token, "windowDef" ) == 0 ) {
-						sourcePatch->ExpectTokenType( TT_NAME, 0, &token );
-						src = *sourcePatch;
+
+						// Skip the rest of this Window and ignore it.
+						// OPTIONAL:  We might want to go back later and and parse this for the window names so
+						//   we can explicitly include text from some sections.  We'll implement this change is it
+						//   is demanded.
+						// Original file must be properly formatted.
+						if ( originalSource->SkipBracedSection() ) {
+
+							// Can't reuse source patches
+							sourcePatchMap.erase( windowName );
+
+							source->ExpectTokenType( TT_NAME, 0, &windowName );
+						}
+
 					} else {
 						common->Warning( "The root window must be a windowDef.  Ignoring patch for '%s'.", windowName.c_str() );
 						sourcePatch->UnreadToken( &token );
@@ -328,9 +351,18 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 				}
 
 				desktop->SetDC( &uiManagerLocal.dc );
-				if ( desktop->Parse( &src, sourcePatchMap, windowName, rebuild ) ) {
+				if ( desktop->Parse( source, sourcePatchMap, windowName, rebuild ) ) {
 					desktop->SetFlag( WIN_DESKTOP );
 					desktop->FixupParms();
+				}
+
+				// The original source was saved off.  Restore it.
+				if ( originalSource != NULL ) {
+
+					// Can't reuse source patches
+					delete source;
+
+					source = originalSource;
 				}
 				continue;
 			}
@@ -702,11 +734,12 @@ void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, std::map<idStr
 					} else {
 
 						patchSourceString = windowTypeToken;
-						patchSourceString.Append( " " );  // TODO:  eviljoel:  Is this necessary?  windowTypeToken might still have whitespace.
+						patchSourceString.Append( " " );
 						patchSourceString.Append( windowNameToken );
-						patchSourceString.Append( " " );  // TODO:  eviljoel:  Is this necessary?  windowTypeToken might still have whitespace.
-						idStr out;
-						patchSourceString.Append( patchFileParser.ParseBracedSection( out, 0 ) );
+						patchSourceString.Append( " " );
+						idStr discard;
+						// TODO:  eviljoel:  The memory allocation within idStr is causing malloc errors with large patch files (and is slow).
+						patchSourceString.Append( patchFileParser.ParseBracedSection( discard, 0 ) );
 
 						// LoadMemory below expects a null terminated C string.
 						const int patchSourceLength = patchSourceString.Length() + 1;
@@ -719,6 +752,12 @@ void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, std::map<idStr
 						//   also passed it on to idLexer.)  Maybe we should pass another parameter explaining what
 						//   part of the patch file we are working with.
 						patchSourceParser->LoadMemory( patchSource, patchSourceLength - 1, patchPath );
+
+						// Erase the existing patch if applicable
+						std::map<idStr, idParser*>::iterator sourcePatchIterator = sourcePatchMap.find( windowNameToken );
+						if ( sourcePatchIterator != sourcePatchMap.end() ) {
+							delete sourcePatchIterator->second;
+						}
 
 						sourcePatchMap[windowNameToken] = patchSourceParser;
 					}

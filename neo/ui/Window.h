@@ -201,8 +201,8 @@ public:
 	static const idRegEntry RegisterVars[];
 	static const int		NumRegisterVars;
 
-	// TODO:  eviljoel:  Document
-	static const bool IsWindowToken( idToken& token );
+	// Returns true if the idStr describes a GUI window type
+	static const bool IsWindowToken( idStr& token );
 
 	void SetDC(idDeviceContext *d);
 
@@ -452,9 +452,9 @@ protected:
 
 	// TODO:  eviljoel:  Should we really have a private section here?
 private:
-	// TODO:  eviljoel:  Document
+	// A array of idStrs that list all the idWindow types
 	static const idStr WindowNameArray[];
-	// TODO:  eviljoel:  Document
+	// A set used for efficient checking if an idStr describes an idWindow type
 	static const std::set<idStr> WindowNames;
 };
 

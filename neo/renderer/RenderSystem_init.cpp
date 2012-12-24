@@ -546,7 +546,6 @@ typedef struct vidmode_s {
 
 // The default video modes available in the Doom 3 GPL release.  These modes are availble in addition to the modes detected by SDL.  
 //   See R_InitAvailableVidModes().
-// TODO:  Consider adding other popular video modes.
 vidmode_t r_defaultVidModes[] = {
     { "Mode  0: 320x240 (4:3)",		320,	240,	0 },
     { "Mode  1: 400x300 (4:3)",		400,	300,	0 },
@@ -653,7 +652,7 @@ void R_InitOpenGL( void ) {
 		if ( modeValid ) {
 
 			// Update the aspect ratio based on the selected r_mode
-			// TODO:  Is it appropriate to be over writing the cvar?
+			// TODO:  eviljoel:  Is it appropriate to be over writing the cvar?
 			cvarSystem->SetCVarInteger( "r_aspectRatio", aspectRatio );
 
 			parms.width = glConfig.vidWidth;
@@ -2124,7 +2123,8 @@ void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::map<Uint32, vi
 
 			// Make sure the video mode is not already added to the map and not one of the modes that are always available
 			if ( modeMap.find( id ) == modeMapEnd ) {
-				vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  Check for invalid pointer from malloc and quit program on failure
+				// TODO:  eviljoel:  Maybe I shouldn't be using malloc.
+				vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  eviljoel:  Check for invalid pointer from malloc and quit program on failure
 				vidmode->width = width;
 				vidmode->height = height;
 				vidmode->ratio = R_DetectAspectRatio( width, height );
@@ -2211,13 +2211,14 @@ void R_InitAvailableVidModes( void ) {
 	// The operating system specific R_InitOpenGL() calls support a variety of color depths, but which
 	//   color depths they support are abstracted away from us.  Therefore, we query for all resolutions at the most 	
 	//   popular color depths.
-	// TODO:  Should we limit the resolution detection to these three bpps?
+	// TODO:  eviljoel:  Should we limit the resolution detection to these three bpps?
 	std::map<Uint32, vidmode_t*> detectedModeMap;
 	R_FindVidModeAtColorDepth( 32, modeMap, detectedModeMap );
 	R_FindVidModeAtColorDepth( 24, modeMap, detectedModeMap );
 	R_FindVidModeAtColorDepth( 16, modeMap, detectedModeMap );
 
-	// TODO:  Consider checking for invalid pointers returned from calloc
+	// TODO:  eviljoel:  Consider using new
+	// TODO:  eviljoel:  Consider checking for invalid pointers returned from calloc
 	r_vidModes = (vidmode_t**) calloc( s_numVidModes, sizeof( vidmode_t* ) );
 	r_foundVidModes = (vidmode_t**) calloc( s_numFoundVidModes, sizeof( vidmode_t* ) );
 
@@ -2253,10 +2254,10 @@ void R_InitAvailableVidModes( void ) {
 
 	R_InitGuiResolutionVars( modeMap );
 
-	// TODO:  We quit the SDL video subsystem now because it conflicts with R_InitOpenGL() on Linux.  If 
-	//   SDL_QuitSubSystem( SDL_INIT_VIDEO ) is called after R_InitOpenGL(), SDL_QuitSubSystem() seg faults.
-	//   Remove the following line and enable the commented call to SDL_QuitSubSystem() in Shutdown() after 
-	//   Icculus converts the codebase to SDL.
+	// TODO:  eviljoel:  We quit the SDL video subsystem now because it conflicts with R_InitOpenGL() on
+	//   Linux.  If SDL_QuitSubSystem( SDL_INIT_VIDEO ) is called after R_InitOpenGL(), SDL_QuitSubSystem()
+	//   seg faults.  Remove the following line and enable the commented call to SDL_QuitSubSystem() in
+	//   Shutdown() after Icculus converts the codebase to SDL.
 	SDL_QuitSubSystem( SDL_INIT_VIDEO );
 }
 
@@ -2465,7 +2466,7 @@ void idRenderSystemLocal::Shutdown( void ) {
 
 	ShutdownOpenGL();
 
-	// TODO:  This call conflicts with R_InitOpenGL().  See comment in R_InitAvailableVidModes().
+	// TODO:  eviljoel:  This call conflicts with R_InitOpenGL().  See comment in R_InitAvailableVidModes().
 	//SDL_QuitSubSystem( SDL_INIT_VIDEO );
 }
 
