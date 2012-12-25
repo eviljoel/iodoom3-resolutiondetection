@@ -315,14 +315,14 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 				idParser* source = &src;
 
 				// See if there is a patch for the whole Window
-				idParser*** sourcePatch;
-				if ( sourcePatchMap.Get( windowName, sourcePatch ) ) {
+				idParser** sourcePatch;
+				if ( sourcePatchMap.Get( windowName, &sourcePatch ) ) {
 
 					// Save the current source
 					originalSource = source;
 
 					// Replace the current source with the source from the patch.
-					source = **sourcePatch;
+					source = *sourcePatch;
 
 					// We already know this defines an idWindow, so don't bother to validate
 					source->ExpectAnyToken( &token );
@@ -345,7 +345,7 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 
 					} else {
 						common->Warning( "The root window must be a windowDef.  Ignoring patch for '%s'.", windowName.c_str() );
-						(**sourcePatch)->UnreadToken( &token );
+						(*sourcePatch)->UnreadToken( &token );
 					}
 				}
 
@@ -753,9 +753,9 @@ void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, idHashTable<id
 						patchSourceParser->LoadMemory( patchSource, patchSourceLength - 1, patchPath );
 
 						// Erase the existing patch if applicable
-						idParser*** existingPatch;
-						if ( sourcePatchMap.Get( windowNameToken, existingPatch ) ) {
-							delete **existingPatch;
+						idParser** existingPatch;
+						if ( sourcePatchMap.Get( windowNameToken, &existingPatch ) ) {
+							delete *existingPatch;
 						}
 
 						sourcePatchMap.Set( windowNameToken, patchSourceParser );

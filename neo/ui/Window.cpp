@@ -2210,8 +2210,8 @@ bool idWindow::Parse( idParser *src, idHashTable<idParser*>& sourcePatchMap, idT
 			src->ExpectTokenType( TT_NAME, 0, &windowName );
 
 			// Use idWindow in the windowPatchMap if a match is found
-			idParser*** sourcePatch;
-			if ( sourcePatchMap.Get( windowName, sourcePatch ) ) {
+			idParser** sourcePatch;
+			if ( sourcePatchMap.Get( windowName, &sourcePatch ) ) {
 
 				// Skip the rest of this Window and ignore it.
 				// OPTIONAL:  We might want to go back later and and parse this for the window names so
@@ -2227,7 +2227,7 @@ bool idWindow::Parse( idParser *src, idHashTable<idParser*>& sourcePatchMap, idT
 					originalSource = src;
 
 					// Replace the current source with the source from the patch.
-					src = **sourcePatch;
+					src = *sourcePatch;
 					// We already know this defines an idWindow, so don't bother to validate
 					src->ExpectAnyToken( &token );
 					src->SetMarker();  // TODO:  eviljoel:  How will this work with the GUI editor?
