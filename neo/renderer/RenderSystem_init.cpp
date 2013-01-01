@@ -2150,10 +2150,14 @@ char* gui_choices;
 char* gui_values;
 void R_InitGuiResolutionVars( std::map<Uint32, vidModeWithIndex_t*>& modeMap ) {
 		
-	std::stringstream choiceDescription;
-	std::stringstream valueDescription;
-	std::string delimitor = "\0";
+	idStr delimitor( "" );
+	idStr delimitorValue( ";" );
 	
+	idStr choice;
+	idStr choices;
+	idStr value;
+	idStr values;
+
 	for( std::map<Uint32, vidModeWithIndex_t*>::const_iterator modeIterator = modeMap.begin(); modeIterator != modeMap.end(); modeIterator++ ) {
 
 		vidModeWithIndex_t* vidModeWithIndex = modeIterator->second;
@@ -2165,23 +2169,24 @@ void R_InitGuiResolutionVars( std::map<Uint32, vidModeWithIndex_t*>& modeMap ) {
 		//    we do not display it in the menu
 		if ( height >= MINIMUM_DISPLAYED_RESOLUTION_HEIGHT && width >= MINIMUM_DISPLAYED_RESOLUTION_WIDTH ) {
 
-			choiceDescription << delimitor << width << "x" << height;
-			valueDescription << delimitor << vidModeWithIndex->modeId;
+			sprintf( choice, "%s%ix%i", delimitor.c_str(), width, height );
+			sprintf( value, "%s%i", delimitor.c_str(), vidModeWithIndex->modeId );
 
-			delimitor = ";";
+			choices.Append( choice );
+			values.Append( value );
+
+			delimitor = delimitorValue;
 		}
 
 		// Free the vidModeWithIndex_t structs as we won't be needing them anymore
 		free( vidModeWithIndex );
 	}
-		
-	const std::string choicesString = choiceDescription.str();
-	gui_choices = new char[ choicesString.size() + 1 ];
-	strncpy( gui_choices, choicesString.c_str(), choicesString.size() + 1 );
 
-	const std::string valuesString = valueDescription.str();
-	gui_values = new char[ valuesString.size() + 1 ];
-	strncpy( gui_values, valuesString.c_str(), valuesString.size() + 1 );
+	gui_choices = new char[ choices.Size() + 1 ];
+	strncpy( gui_choices, choices.c_str(), choices.Size() + 1 );
+
+	gui_values = new char[ values.Size() + 1 ];
+	strncpy( gui_values, values.c_str(), values.Size() + 1 );
 }
 
 /*
@@ -2192,7 +2197,7 @@ R_InitAvailableVidModes
 Determines which video modes are available for rendering.  Currently, the available video modes are a combination of the video modes reported from SDL 
 and the original video mode array as found in the Doom 3 GPL release.
 */
-const std::string RATIO_DESCRIPTIONS[] = { " (4:3)", " (16:10)", " (16:9)" };
+const char* RATIO_DESCRIPTIONS[] = { "(4:3)", "(16:10)", "(16:9)" };
 void R_InitAvailableVidModes( void ) {
 
 	// Create a Map with all the available modes including the modes statically defined in the original Doom 3 GPL source 
@@ -2241,12 +2246,11 @@ void R_InitAvailableVidModes( void ) {
 		r_vidModes[ modeIndex ] = vidmode;
 		r_foundVidModes[ foundModeIndex ] = vidmode;
 
-		std::stringstream description;
-		description << "Mode  " << modeIndex << ": " << vidmode->width << "x" << vidmode->height << RATIO_DESCRIPTIONS[ vidmode->ratio ];
-		const std::string descriptionString = description.str();
-		char* descriptionCString = new char[ descriptionString.size() + 1 ];
-		strncpy( descriptionCString, descriptionString.c_str(), descriptionString.size() + 1 );
-		vidmode->description = descriptionCString;
+		idStr descriptionString;
+		sprintf( descriptionString, "Mode  %i: %ix%i %s", modeIndex, vidmode->width, vidmode->height, RATIO_DESCRIPTIONS[ vidmode->ratio ] );
+		char* description = new char[ descriptionString.Size() + 1 ];
+		strncpy( description, descriptionString.c_str(), descriptionString.Size() + 1 );
+		vidmode->description = description;
 
 		modeIndex++;
 		foundModeIndex++;
