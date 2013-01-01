@@ -2205,7 +2205,7 @@ void R_InitAvailableVidModes( void ) {
 	for ( int defaultModeIndex = 0; defaultModeIndex < s_numVidModes; defaultModeIndex++ ) {
 
 		vidmode_t* vidMode = &r_defaultVidModes[ defaultModeIndex ];
-		vidModeWithIndex_t* vidModeWithIndex = (vidModeWithIndex_t*) malloc( sizeof( vidModeWithIndex_t* ) );
+		vidModeWithIndex_t* vidModeWithIndex = new vidModeWithIndex_t();
 		vidModeWithIndex->modeId = defaultModeIndex;
 		vidModeWithIndex->vidMode = vidMode;
  		const Uint32 id = ( ( (Uint32) vidMode->width ) << 16 ) + vidMode->height;
@@ -2221,10 +2221,8 @@ void R_InitAvailableVidModes( void ) {
 	R_FindVidModeAtColorDepth( 24, modeMap, detectedModeMap );
 	R_FindVidModeAtColorDepth( 16, modeMap, detectedModeMap );
 
-	// TODO:  eviljoel:  Consider using new
-	// TODO:  eviljoel:  Consider checking for invalid pointers returned from calloc
-	r_vidModes = (vidmode_t**) calloc( s_numVidModes, sizeof( vidmode_t* ) );
-	r_foundVidModes = (vidmode_t**) calloc( s_numFoundVidModes, sizeof( vidmode_t* ) );
+	r_vidModes = new vidmode_t*[s_numVidModes];
+	r_foundVidModes = new vidmode_t*[s_numFoundVidModes];
 
 	// First copy the default video modes.  We want the default video modes to remain in their current array positions
 	//   for backwards compatibility with the listModes command and the r_modes cvar.
@@ -2280,8 +2278,8 @@ void R_FreeDetectedVidModes( void ) {
 		delete vidmode->description;
 		delete vidmode;
 	}
-	free( r_foundVidModes );
-	free( r_vidModes );
+	delete r_foundVidModes;
+	delete r_vidModes;
 }
 
 /*
