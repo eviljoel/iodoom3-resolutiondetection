@@ -2123,13 +2123,12 @@ void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::map<Uint32, vi
 
 			// Make sure the video mode is not already added to the map and not one of the modes that are always available
 			if ( modeMap.find( id ) == modeMapEnd ) {
-				// TODO:  eviljoel:  Maybe I shouldn't be using malloc.
-				vidmode_t* vidmode = (vidmode_t*) malloc( sizeof( vidmode_t ) );  // TODO:  eviljoel:  Check for invalid pointer from malloc and quit program on failure
+				vidmode_t* vidmode = new vidmode_t();
 				vidmode->width = width;
 				vidmode->height = height;
 				vidmode->ratio = R_DetectAspectRatio( width, height );
 				detectedModeMap[id] = vidmode;
-				vidModeWithIndex_t* vidModeWithIndex = (vidModeWithIndex_t*) malloc( sizeof( vidModeWithIndex_t* ) );
+				vidModeWithIndex_t* vidModeWithIndex = new vidModeWithIndex_t();
 				vidModeWithIndex->vidMode = vidmode;
 				modeMap[id] = vidModeWithIndex;
 				s_numVidModes++;
@@ -2179,7 +2178,7 @@ void R_InitGuiResolutionVars( std::map<Uint32, vidModeWithIndex_t*>& modeMap ) {
 		}
 
 		// Free the vidModeWithIndex_t structs as we won't be needing them anymore
-		free( vidModeWithIndex );
+		delete vidModeWithIndex;
 	}
 
 	gui_choices = new char[ choices.Size() + 1 ];
@@ -2274,15 +2273,15 @@ Used to free memory allocated during R_InitAvailableVidModes().
 */
 void R_FreeDetectedVidModes( void ) {
 
-        while( s_numFoundVidModes > 0 )
-        {
-                s_numFoundVidModes--;
+	while( s_numFoundVidModes > 0 )
+	{
+		s_numFoundVidModes--;
 		vidmode_t* vidmode = r_foundVidModes[ s_numFoundVidModes ];
 		delete vidmode->description;
-                free( vidmode );
-        }
-        free( r_foundVidModes );
-        free( r_vidModes );
+		delete vidmode;
+	}
+	free( r_foundVidModes );
+	free( r_vidModes );
 }
 
 /*
