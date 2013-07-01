@@ -2037,13 +2037,25 @@ void R_TouchGui_f( const idCmdArgs &args ) {
 	const char	*gui = args.Argv( 1 );
 
 	if ( !gui[0] ) {
-		common->Printf( "USAGE: touchGui <guiName>\n" );
+		common->Printf( "USAGE: touchGui <guiName> <patchNames ...>\n" );
 		return;
 	}
 
-	common->Printf( "touchGui %s\n", gui );
+	const int argumentCount = args.Argc();
+	idStrList guiPatches;
+	idStr guiPatchString( "" );
+	if ( argumentCount > 1 ) {
+		for ( int argumentLoop = 2; argumentLoop < argumentCount; argumentLoop++ ) {
+			idStr patchName( args.GetArgs( argumentLoop ) );
+			guiPatches.Append( patchName );
+			guiPatchString.Append( ' ' );
+			guiPatchString.Append( patchName.c_str() );
+		}
+	}
+
+	common->Printf( "touchGui %s%s\n", gui, guiPatchString.c_str() );
 	session->UpdateScreen();
-	uiManager->Touch( gui );
+	uiManager->Touch( gui, guiPatches );
 }
 
 /*

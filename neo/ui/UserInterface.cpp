@@ -58,21 +58,39 @@ void idUserInterfaceManagerLocal::Shutdown() {
 	dc.Shutdown();
 }
 
+// Used with precaching (which is used with timedemos)
 void idUserInterfaceManagerLocal::Touch( const char *name ) {
 	idUserInterface *gui = Alloc();
-	idStrList patchPaths( 1 );  // Use the smallest granularity for an empty List
-	gui->InitFromFile( name, patchPaths );
+	Touch( name, idStrList( 1 ) );
 //	delete gui;
 }
 
+
+// Used with precaching (which is used with timedemos)
+void idUserInterfaceManagerLocal::Touch( const char *name, idStrList sourcePatches ) {
+	idUserInterface *gui = Alloc();
+	gui->InitFromFileWithPatches( name, sourcePatches );
+//	delete gui;
+}
+
+// Note that resources are not quoted.  TODO:  eviljoel:  Should they be?
 void idUserInterfaceManagerLocal::WritePrecacheCommands( idFile *f ) {
 
-	int c = guis.Num();
+	const int c = guis.Num();
+
 	for( int i = 0; i < c; i++ ) {
-		char	str[1024];
-		sprintf( str, "touchGui %s\n", guis[i]->Name() );
-		common->Printf( "%s", str );
-		f->Printf( "%s", str );
+
+		// List the patches, in order, after the main gui file.
+		idStrList* sourcePatchFiles = guis[i]->GetSourcePatchFiles();
+		const int guiPatchCount = sourcePatchFiles->Num();
+		idStr guiPatchString("");
+		for ( int guiPatchLoop = 0; guiPatchLoop < guiPatchCount; guiPatchLoop++ ) {
+			guiPatchString.Append( ' ' );
+			guiPatchString.Append( (*sourcePatchFiles)[guiPatchLoop] );
+		}
+
+		common->Printf( "touchGui %s%s\n", guis[i]->Name(), guiPatchString.c_str() );
+		f->Printf( "touchGui %s%s\n", guis[i]->Name(), guiPatchString.c_str() );
 	}
 }
 
@@ -124,14 +142,15 @@ void idUserInterfaceManagerLocal::Reload( bool all ) {
 	int c = guis.Num();
 	for ( int i = 0; i < c; i++ ) {
 		if ( !all ) {
+			// Check the file timestamp and reload the ones that have been updated
 			fileSystem->ReadFile( guis[i]->GetSourceFile(), NULL, &ts );
 			if ( ts <= guis[i]->GetTimeStamp() ) {
 				continue;
 			}
 		}
 
-		idStrList patchPaths( 1 );  // Use the smallest granularity for an empty List
-		guis[i]->InitFromFile( guis[i]->GetSourceFile(), patchPaths );
+		idStrList* patchPaths = guis[i]->GetSourcePatchFiles();
+		guis[i]->InitFromFileWithPatches( guis[i]->GetSourceFile(), *patchPaths );
 		common->Printf( "reloading %s.\n", guis[i]->GetSourceFile() );
 	}
 }
@@ -205,7 +224,7 @@ idUserInterface *idUserInterfaceManagerLocal::FindGuiAndGuiPatches( const char *
 
 	if ( autoLoad ) {
 		idUserInterface *gui = Alloc();
-		if ( gui->InitFromFile( qpath, patchPaths ) ) {
+		if ( gui->InitFromFileWithPatches( qpath, patchPaths ) ) {
 			gui->SetUniqued( forceNOTUnique ? false : needUnique );
 			return gui;
 		} else {
@@ -274,7 +293,12 @@ bool idUserInterfaceLocal::IsInteractive() const {
 	return interactive;
 }
 
-bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPaths, bool rebuild, bool cache ) {
+bool idUserInterfaceLocal::InitFromFile( const char *qpath, bool rebuild, bool cache ) {
+	idStrList patchPaths( 1 );  // Use the smallest granularity for an empty List
+	return InitFromFileWithPatches( qpath, patchPaths, rebuild, cache );
+}
+
+bool idUserInterfaceLocal::InitFromFileWithPatches( const char *qpath, idStrList& patchPaths, bool rebuild, bool cache ) {
 
 	if ( !( qpath && *qpath ) ) { 
 		// FIXME: Memory leak!!
@@ -294,6 +318,7 @@ bool idUserInterfaceLocal::InitFromFile( const char *qpath, idStrList& patchPath
 	}
 
 	source = qpath;
+	sourcePatches = patchPaths;
 
 	idParser src( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
 
