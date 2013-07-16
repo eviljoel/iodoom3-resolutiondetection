@@ -50,6 +50,13 @@ idUserInterfaceManager *	uiManager = &uiManagerLocal;
 void idUserInterfaceManagerLocal::Init() {
 	screenRect = idRectangle(0, 0, 640, 480);
 	dc.Init();
+
+	// TODO:  eviljoel:  Determine if the GUI patch will also work for the Demo and RoE
+	// TODO:  eviljoel:  Make this look neater by using an array of CStrings
+	idStrList os2PrimaryPatchPaths = new idStrList( 1 );
+	idStr os2PrimaryPatch = new idStr( "guis/mainmenu-os2primary.guipatch" );
+	os2PrimaryPatchPaths.Append( os2PrimaryPatch );
+	guiToPatchFilesMap.Set( "guis/mainmenu.gui", os2PrimaryPatchPaths );
 }
 
 void idUserInterfaceManagerLocal::Shutdown() {
@@ -61,15 +68,7 @@ void idUserInterfaceManagerLocal::Shutdown() {
 // Used with precaching (which is used with timedemos)
 void idUserInterfaceManagerLocal::Touch( const char *name ) {
 	idUserInterface *gui = Alloc();
-	Touch( name, idStrList( 1 ) );
-//	delete gui;
-}
-
-
-// Used with precaching (which is used with timedemos)
-void idUserInterfaceManagerLocal::Touch( const char *name, idStrList sourcePatches ) {
-	idUserInterface *gui = Alloc();
-	gui->InitFromFileWithPatches( name, sourcePatches );
+	gui->InitFromFile( name );
 //	delete gui;
 }
 
@@ -79,18 +78,8 @@ void idUserInterfaceManagerLocal::WritePrecacheCommands( idFile *f ) {
 	const int c = guis.Num();
 
 	for( int i = 0; i < c; i++ ) {
-
-		// List the patches, in order, after the main gui file.
-		idStrList* sourcePatchFiles = guis[i]->GetSourcePatchFiles();
-		const int guiPatchCount = sourcePatchFiles->Num();
-		idStr guiPatchString("");
-		for ( int guiPatchLoop = 0; guiPatchLoop < guiPatchCount; guiPatchLoop++ ) {
-			guiPatchString.Append( ' ' );
-			guiPatchString.Append( (*sourcePatchFiles)[guiPatchLoop] );
-		}
-
-		common->Printf( "touchGui %s%s\n", guis[i]->Name(), guiPatchString.c_str() );
-		f->Printf( "touchGui %s%s\n", guis[i]->Name(), guiPatchString.c_str() );
+		common->Printf( "touchGui %s\n", guis[i]->Name() );
+		f->Printf( "touchGui %s\n", guis[i]->Name() );
 	}
 }
 
@@ -149,8 +138,7 @@ void idUserInterfaceManagerLocal::Reload( bool all ) {
 			}
 		}
 
-		idStrList* patchPaths = guis[i]->GetSourcePatchFiles();
-		guis[i]->InitFromFileWithPatches( guis[i]->GetSourceFile(), *patchPaths );
+		guis[i]->InitFromFile( guis[i]->GetSourceFile() );
 		common->Printf( "reloading %s.\n", guis[i]->GetSourceFile() );
 	}
 }
@@ -203,12 +191,6 @@ void idUserInterfaceManagerLocal::DeAlloc( idUserInterface *gui ) {
 }
 
 idUserInterface *idUserInterfaceManagerLocal::FindGui( const char *qpath, bool autoLoad, bool needUnique, bool forceNOTUnique ) {
-	idStrList patchPaths( 1 );  // Use the smallest granularity for an empty List
-
-	return FindGuiAndGuiPatches( qpath, patchPaths, autoLoad, needUnique, forceNOTUnique );
-}
-
-idUserInterface *idUserInterfaceManagerLocal::FindGuiAndGuiPatches( const char *qpath, idStrList& patchPaths, bool autoLoad, bool needUnique, bool forceNOTUnique ) {
 	int c = guis.Num();
 
 	for ( int i = 0; i < c; i++ ) {
@@ -224,7 +206,7 @@ idUserInterface *idUserInterfaceManagerLocal::FindGuiAndGuiPatches( const char *
 
 	if ( autoLoad ) {
 		idUserInterface *gui = Alloc();
-		if ( gui->InitFromFileWithPatches( qpath, patchPaths ) ) {
+		if ( gui->InitFromFile( qpath ) ) {
 			gui->SetUniqued( forceNOTUnique ? false : needUnique );
 			return gui;
 		} else {
@@ -294,19 +276,14 @@ bool idUserInterfaceLocal::IsInteractive() const {
 }
 
 bool idUserInterfaceLocal::InitFromFile( const char *qpath, bool rebuild, bool cache ) {
-	idStrList patchPaths( 1 );  // Use the smallest granularity for an empty List
-	return InitFromFileWithPatches( qpath, patchPaths, rebuild, cache );
-}
-
-bool idUserInterfaceLocal::InitFromFileWithPatches( const char *qpath, idStrList& patchPaths, bool rebuild, bool cache ) {
-
 	if ( !( qpath && *qpath ) ) { 
 		// FIXME: Memory leak!!
 		return false;
 	}
 
+
 	idHashTable<idParser*> sourcePatchMap;
-	InitPatchFiles( patchPaths, sourcePatchMap );
+	InitPatchFiles( qpath, sourcePatchMap );
 
 	loading = true;
 
@@ -318,7 +295,6 @@ bool idUserInterfaceLocal::InitFromFileWithPatches( const char *qpath, idStrList
 	}
 
 	source = qpath;
-	sourcePatches = patchPaths;
 
 	idParser src( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
 
@@ -730,65 +706,69 @@ void idUserInterfaceLocal::SetCursor( float x, float y ) {
 idUserInterfaceLocal::InitPatchFiles
 ==============
  */
-void idUserInterfaceLocal::InitPatchFiles( idStrList& patchPaths, idHashTable<idParser*>& sourcePatchMap ) {
+void idUserInterfaceLocal::InitPatchFiles( const char* qpath, idHashTable<idParser*>& sourcePatchMap ) {
 
-	int patchPathCount = patchPaths.Num();
-	idStr patchSourceString;  // Defined out here to avoid object creation.
-	for ( int patchPathIndex; patchPathIndex < patchPathCount; patchPathIndex++ ) {
-		const char* patchPath = patchPaths[patchPathIndex].c_str();
+	idStrList* patchPaths = NULL;
+	if ( uiManagerLocal.guiToPatchFilesMap.Get( qpath, &patchPaths ) ) {
 
-		// Load the timestamp so reload guis will work correctly
-		fileSystem->ReadFile( patchPath, NULL, &timeStamp );
+		int patchPathCount = patchPaths->Num();
+		idStr patchSourceString;  // Defined out here to avoid object creation.
+		for ( int patchPathIndex; patchPathIndex < patchPathCount; patchPathIndex++ ) {
+			const char* patchPath = (*patchPaths)[patchPathIndex].c_str();
 
-		idParser patchFileParser( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
-		patchFileParser.LoadFile( patchPath );
+			// Load the timestamp so reload guis will work correctly
+			fileSystem->ReadFile( patchPath, NULL, &timeStamp );
 
-		if ( patchFileParser.IsLoaded() ) {
-			idToken windowTypeToken;
-			while( patchFileParser.ReadToken( &windowTypeToken ) ) {
+			idParser patchFileParser( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
+			patchFileParser.LoadFile( patchPath );
 
-				// Make sure the first token describes a window
-				if ( idWindow::IsWindowToken(windowTypeToken) ) {
+			if ( patchFileParser.IsLoaded() ) {
+				idToken windowTypeToken;
+				while( patchFileParser.ReadToken( &windowTypeToken ) ) {
 
-					// Error if the second token does not describe the Window
-					idToken windowNameToken;
-					if ( !patchFileParser.ExpectTokenType( TT_NAME, 0, &windowNameToken ) ) {
-						common->Warning(
-								"Window name expected while loading GUI patch source: '%s'", patchPath );
-					} else {
+					// Make sure the first token describes a window
+					if ( idWindow::IsWindowToken(windowTypeToken) ) {
 
-						patchSourceString = windowTypeToken;
-						patchSourceString.Append( " " );
-						patchSourceString.Append( windowNameToken );
-						patchSourceString.Append( " " );
-						idStr discard;
-						// TODO:  eviljoel:  The memory allocation within idStr is causing malloc errors with large patch files (and is slow).
-						patchSourceString.Append( patchFileParser.ParseBracedSection( discard, 0 ) );
+						// Error if the second token does not describe the Window
+						idToken windowNameToken;
+						if ( !patchFileParser.ExpectTokenType( TT_NAME, 0, &windowNameToken ) ) {
+							common->Warning(
+									"Window name expected while loading GUI patch source: '%s'", patchPath );
+						} else {
 
-						// LoadMemory below expects a null terminated C string.
-						const int patchSourceLength = patchSourceString.Length() + 1;
-						char* patchSource = Mem_Alloc( patchSourceLength );
-						idStr::Copynz( patchSource, patchSourceString.c_str(), patchSourceLength );
+							patchSourceString = windowTypeToken;
+							patchSourceString.Append( " " );
+							patchSourceString.Append( windowNameToken );
+							patchSourceString.Append( " " );
+							idStr discard;
+							// TODO:  eviljoel:  The memory allocation within idStr is causing malloc errors with large patch files (and is slow).
+							patchSourceString.Append( patchFileParser.ParseBracedSection( discard, 0 ) );
 
-						idParser* patchSourceParser =
-								new idParser( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
-						// TODO:  eviljoel:  idParser mostly just uses the filename for error messages.  (It is
-						//   also passed it on to idLexer.)  Maybe we should pass another parameter explaining what
-						//   part of the patch file we are working with.
-						patchSourceParser->LoadMemory( patchSource, patchSourceLength - 1, patchPath );
+							// LoadMemory below expects a null terminated C string.
+							const int patchSourceLength = patchSourceString.Length() + 1;
+							char* patchSource = Mem_Alloc( patchSourceLength );
+							idStr::Copynz( patchSource, patchSourceString.c_str(), patchSourceLength );
 
-						// Erase the existing patch if applicable
-						idParser** existingPatch;
-						if ( sourcePatchMap.Get( windowNameToken, &existingPatch ) ) {
-							delete *existingPatch;
+							idParser* patchSourceParser =
+									new idParser( LEXFL_NOFATALERRORS | LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
+							// TODO:  eviljoel:  idParser mostly just uses the filename for error messages.  (It is
+							//   also passed it on to idLexer.)  Maybe we should pass another parameter explaining what
+							//   part of the patch file we are working with.
+							patchSourceParser->LoadMemory( patchSource, patchSourceLength - 1, patchPath );
+
+							// Erase the existing patch if applicable
+							idParser** existingPatch;
+							if ( sourcePatchMap.Get( windowNameToken, &existingPatch ) ) {
+								delete *existingPatch;
+							}
+
+							sourcePatchMap.Set( windowNameToken, patchSourceParser );
 						}
-
-						sourcePatchMap.Set( windowNameToken, patchSourceParser );
 					}
 				}
+			} else {
+				common->Warning( "Couldn't load gui patch: '%s'", patchPath );
 			}
-		} else {
-			common->Warning( "Couldn't load gui patch: '%s'", patchPath );
 		}
 	}
 }

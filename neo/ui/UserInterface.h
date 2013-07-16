@@ -112,10 +112,6 @@ public:
 	virtual void				SetCursor( float x, float y ) = 0;
 	virtual float				CursorX() = 0;
 	virtual float				CursorY() = 0;
-
-	// TODO:  Remove from interface:
-	// returns false if it failed to load
-    virtual bool				InitFromFileWithPatches( const char *qpath, idStrList& patchPaths, bool rebuild = true, bool cache = true ) = 0;
 };
 
 
@@ -160,15 +156,6 @@ public:
 
 								// De-allocates a list gui
 	virtual void				FreeListGUI( idListGUI *listgui ) = 0;
-
-	// TODO:  Remove from interface:
-	// Returns NULL if gui by that name does not exist.
-	// Note the patch files are only applied the first time qpath is loaded unless forceNOTUnique is false and
-	//   (needUnique is true or the GUI is interactive).
-	virtual idUserInterface *	FindGuiAndGuiPatches( const char *qpath, idStrList& patchPaths, bool autoLoad = false, bool needUnique = false, bool forceUnique = false ) = 0;
-
-	// TODO:  Remove from interface
-	virtual void				Touch( const char *name, idStrList sourcePatches ) = 0;
 };
 
 extern idUserInterfaceManager *	uiManager;

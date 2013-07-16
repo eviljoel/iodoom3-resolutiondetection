@@ -75,7 +75,6 @@ public:
 	idDict *					GetStateDict() { return &state; }
 
 	const char *				GetSourceFile( void ) const { return source; }
-	const idStrList*			GetSourcePatchFiles( void ) const { return &sourcePatches; }
 	ID_TIME_T						GetTimeStamp( void ) const { return timeStamp; }
 
 	idWindow *					GetDesktop() const { return desktop; }
@@ -93,9 +92,10 @@ public:
 	idStr						&GetReturnCmd() { return returnCmd; };
 
 private:
+	// TODO:  Update
 	// Opens all the files specified in patchPaths and populates the sourcePatchMap.  The Map key is the
 	//   root idWindow name and the value is an idParser based on the root idWindow.
-	void						InitPatchFiles( idStrList& patchPaths, idHashTable<idParser*>& sourcePatchMap );
+	void						InitPatchFiles( const char* qpath, idHashTable<idParser*>& sourcePatchMap );
 	// Deletes any unused keys and patches in the Map.
 	void						DeletePatchData( idHashTable<idParser*>& sourcePatchMap );
 
@@ -109,7 +109,6 @@ private:
 	idWindow *					bindHandler;
 
 	idStr						source;
-	idStrList					sourcePatches;
 	idStr						activateStr;
 	idStr						pendingCmd;
 	idStr						returnCmd;
@@ -121,9 +120,6 @@ private:
 	int							time;
 
 	int							refs;
-
-public:
-	virtual bool				InitFromFileWithPatches( const char *qpath, idStrList& patchPaths, bool rebuild = true, bool cache = true );
 };
 
 class idUserInterfaceManagerLocal : public idUserInterfaceManager {
@@ -151,10 +147,8 @@ private:
 	idRectangle					screenRect;
 	idDeviceContext				dc;
 
+	idHashTable<idStrList>		guiToPatchFilesMap;
+
 	idList<idUserInterfaceLocal*> guis;
 	idList<idUserInterfaceLocal*> demoGuis;
-
-public:
-	virtual idUserInterface *	FindGuiAndGuiPatches( const char *qpath, idStrList& patchPaths, bool autoLoad = false, bool needUnique = false, bool forceUnique = false );
-	virtual void				Touch( const char *name, idStrList sourcePatches );
 };

@@ -2903,13 +2903,10 @@ void idSessionLocal::Init() {
 	menuSoundWorld = soundSystem->AllocSoundWorld( rw );
 
 	// we have a single instance of the main menu
-	// TODO:  eviljoel:  Determine if the GUI patch will also work for the Demo
-	idStrList patchPaths( 1 );
-	patchPaths.Append( idStr("guis/mainmenu-os2primary.guipatch") );
 #ifndef ID_DEMO_BUILD
-	guiMainMenu = uiManager->FindGuiAndGuiPatches( "guis/mainmenu.gui", patchPaths, true, false, true );
+	guiMainMenu = uiManager->FindGui( "guis/mainmenu.gui", true, false, true );
 #else
-	guiMainMenu = uiManager->FindGuiAndGuiPatches( "guis/demo_mainmenu.gui", patchPaths, true, false, true );
+	guiMainMenu = uiManager->FindGui( "guis/demo_mainmenu.gui", true, false, true );
 #endif
 	guiMainMenu_MapList = uiManager->AllocListGUI();
 	guiMainMenu_MapList->Config( guiMainMenu, "mapList" );
