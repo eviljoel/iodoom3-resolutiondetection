@@ -147,7 +147,7 @@ private:
 	idRectangle					screenRect;
 	idDeviceContext				dc;
 
-	idHashTable<idStrList>		guiToPatchFilesMap;
+	idHashTable<idStrList*>		guiToPatchFilesMap;
 
 	idList<idUserInterfaceLocal*> guis;
 	idList<idUserInterfaceLocal*> demoGuis;

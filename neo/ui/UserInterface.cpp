@@ -53,13 +53,14 @@ void idUserInterfaceManagerLocal::Init() {
 
 	// TODO:  eviljoel:  Determine if the GUI patch will also work for the Demo and RoE
 	// TODO:  eviljoel:  Make this look neater by using an array of CStrings
-	idStrList os2PrimaryPatchPaths = new idStrList( 1 );
-	idStr os2PrimaryPatch = new idStr( "guis/mainmenu-os2primary.guipatch" );
-	os2PrimaryPatchPaths.Append( os2PrimaryPatch );
+	idStrList* os2PrimaryPatchPaths = new idStrList( 1 );
+	idStr* os2PrimaryPatch = new idStr( "guis/mainmenu-os2primary.guipatch" );
+	os2PrimaryPatchPaths->Append( *os2PrimaryPatch );
 	guiToPatchFilesMap.Set( "guis/mainmenu.gui", os2PrimaryPatchPaths );
 }
 
 void idUserInterfaceManagerLocal::Shutdown() {
+	guiToPatchFilesMap.DeleteContents();
 	guis.DeleteContents( true );
 	demoGuis.DeleteContents( true );
 	dc.Shutdown();
@@ -708,13 +709,13 @@ idUserInterfaceLocal::InitPatchFiles
  */
 void idUserInterfaceLocal::InitPatchFiles( const char* qpath, idHashTable<idParser*>& sourcePatchMap ) {
 
-	idStrList* patchPaths = NULL;
+	idStrList** patchPaths = NULL;
 	if ( uiManagerLocal.guiToPatchFilesMap.Get( qpath, &patchPaths ) ) {
 
-		int patchPathCount = patchPaths->Num();
+		int patchPathCount = (*patchPaths)->Num();
 		idStr patchSourceString;  // Defined out here to avoid object creation.
 		for ( int patchPathIndex; patchPathIndex < patchPathCount; patchPathIndex++ ) {
-			const char* patchPath = (*patchPaths)[patchPathIndex].c_str();
+			const char* patchPath = (**patchPaths)[patchPathIndex].c_str();
 
 			// Load the timestamp so reload guis will work correctly
 			fileSystem->ReadFile( patchPath, NULL, &timeStamp );
