@@ -93,7 +93,6 @@ If you have questions concerning this license or the applicable additional terms
 	#define NDEBUG
 #endif
 
-// TODO:  eviljoel:  Don't use the standard library
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -104,9 +103,6 @@ If you have questions concerning this license or the applicable additional terms
 #include <typeinfo>
 #include <errno.h>
 #include <math.h>
-#include <map>
-#include <set>
-#include <sstream>
 #include <SDL/SDL.h>
 
 //-----------------------------------------------------

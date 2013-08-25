@@ -27,6 +27,7 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 #include "../idlib/precompiled.h"
+#include "../idlib/containers/BTree.h"
 #pragma hdrstop
 
 #include "tr_local.h"
@@ -2102,17 +2103,17 @@ typedef struct vidModeWithIndex_s {
 	vidmode_t*	vidMode;
 } vidModeWithIndex_t;
 
-void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::map<Uint32, vidModeWithIndex_t*>& modeMap, std::map<Uint32, vidmode_t*>& detectedModeMap ) {
+void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, idBTree<vidModeWithIndex_t*, Uint32, 4>& modeMap,
+		idBTree<vidmode_t*, Uint32, 4>& detectedModeMap ) {
 	
 	SDL_PixelFormat format;
 	format.BitsPerPixel = colorBitsPerPixel;
 	SDL_Rect** modes = SDL_ListModes( &format, SDL_FULLSCREEN | SDL_OPENGL | SDL_DOUBLEBUF );
 
 	// If no video modes are reported or if any resolution is possible, then don't add anything to the Map.  At a minimum, the 
-	//   orignal video modes from the Doom 3 GPL release will still be available.
+	//   original video modes from the Doom 3 GPL release will still be available.
 	if ( modes != (SDL_Rect**)-1 && modes != (SDL_Rect**)0 ) {
 
-		std::map<Uint32, vidModeWithIndex_t*>::const_iterator modeMapEnd = modeMap.end();
 		for ( int detectedModeIndex = 0; modes[detectedModeIndex]; detectedModeIndex++ ) {
 
 			// Arranging the key like this no only ensures each resolution has a unique ID, it also ensures
@@ -2122,15 +2123,15 @@ void R_FindVidModeAtColorDepth( const int colorBitsPerPixel, std::map<Uint32, vi
 			const Uint32 id = ( ( (Uint32) width ) << 16 ) + height;
 
 			// Make sure the video mode is not already added to the map and not one of the modes that are always available
-			if ( modeMap.find( id ) == modeMapEnd ) {
+			if ( modeMap.Find( id ) ) {
 				vidmode_t* vidmode = new vidmode_t();
 				vidmode->width = width;
 				vidmode->height = height;
 				vidmode->ratio = R_DetectAspectRatio( width, height );
-				detectedModeMap[id] = vidmode;
+				detectedModeMap.Add( &vidmode, id );
 				vidModeWithIndex_t* vidModeWithIndex = new vidModeWithIndex_t();
 				vidModeWithIndex->vidMode = vidmode;
-				modeMap[id] = vidModeWithIndex;
+				modeMap.Add( &vidModeWithIndex, id );
 				s_numVidModes++;
 				s_numFoundVidModes++;
 			}
@@ -2147,7 +2148,7 @@ Creates strings to be used in the resolution selection ChoiceDef of the main men
 */
 char* gui_choices;
 char* gui_values;
-void R_InitGuiResolutionVars( std::map<Uint32, vidModeWithIndex_t*>& modeMap ) {
+void R_InitGuiResolutionVars( idBTree<vidModeWithIndex_t*, Uint32, 4>& modeMap ) {
 		
 	idStr delimitor( "" );
 	idStr delimitorValue( ";" );
@@ -2157,9 +2158,10 @@ void R_InitGuiResolutionVars( std::map<Uint32, vidModeWithIndex_t*>& modeMap ) {
 	idStr value;
 	idStr values;
 
-	for( std::map<Uint32, vidModeWithIndex_t*>::const_iterator modeIterator = modeMap.begin(); modeIterator != modeMap.end(); modeIterator++ ) {
+	idBTreeNode<vidModeWithIndex_t*, Uint32>* vidModeNode = modeMap.FindSmallestLargerEqual( 0 );
+	while( vidModeNode ) {
 
-		vidModeWithIndex_t* vidModeWithIndex = modeIterator->second;
+		vidModeWithIndex_t* vidModeWithIndex = vidModeNode->object;
 		vidmode_t* vidMode = vidModeWithIndex->vidMode;
 		const Uint16 height = vidMode->height; 
 		const Uint16 width = vidMode->width;
@@ -2179,6 +2181,8 @@ void R_InitGuiResolutionVars( std::map<Uint32, vidModeWithIndex_t*>& modeMap ) {
 
 		// Free the vidModeWithIndex_t structs as we won't be needing them anymore
 		delete vidModeWithIndex;
+
+		vidModeNode = modeMap.GetNext( vidModeNode );
 	}
 
 	gui_choices = new char[ choices.Size() + 1 ];
@@ -2201,7 +2205,7 @@ void R_InitAvailableVidModes( void ) {
 
 	// Create a Map with all the available modes including the modes statically defined in the original Doom 3 GPL source 
 	//   code release.  Once a resolution is added to this Map the mode will not be added to the detectedModeMap. 
-	std::map<Uint32, vidModeWithIndex_t*> modeMap;
+	idBTree<vidModeWithIndex_t*, Uint32, 4> modeMap;
 	for ( int defaultModeIndex = 0; defaultModeIndex < s_numVidModes; defaultModeIndex++ ) {
 
 		vidmode_t* vidMode = &r_defaultVidModes[ defaultModeIndex ];
@@ -2209,14 +2213,14 @@ void R_InitAvailableVidModes( void ) {
 		vidModeWithIndex->modeId = defaultModeIndex;
 		vidModeWithIndex->vidMode = vidMode;
  		const Uint32 id = ( ( (Uint32) vidMode->width ) << 16 ) + vidMode->height;
-		modeMap[ id ] = vidModeWithIndex;
+		modeMap.Add( &vidModeWithIndex, id );
 	}
 
 	// The operating system specific R_InitOpenGL() calls support a variety of color depths, but which
 	//   color depths they support are abstracted away from us.  Therefore, we query for all resolutions at the most 	
 	//   popular color depths.
 	// TODO:  eviljoel:  Should we limit the resolution detection to these three bpps?
-	std::map<Uint32, vidmode_t*> detectedModeMap;
+	idBTree<vidmode_t*, Uint32, 4> detectedModeMap;
 	R_FindVidModeAtColorDepth( 32, modeMap, detectedModeMap );
 	R_FindVidModeAtColorDepth( 24, modeMap, detectedModeMap );
 	R_FindVidModeAtColorDepth( 16, modeMap, detectedModeMap );
@@ -2235,11 +2239,12 @@ void R_InitAvailableVidModes( void ) {
 
 	// Now copy the detected modes into the main video mode array
 	int foundModeIndex = 0;
-	for( std::map<Uint32, vidmode_t*>::const_iterator modeIterator = detectedModeMap.begin(); modeIterator != detectedModeMap.end(); modeIterator++ ) {
+	idBTreeNode<vidmode_t*, Uint32>* detectedModeNode = detectedModeMap.FindSmallestLargerEqual( 0 );
+	while( detectedModeNode ) {
 
-		modeMap[ modeIterator->first ]->modeId = modeIndex;
+		modeMap.Find( detectedModeNode->key )->modeId = modeIndex;
 
-		vidmode_t* vidmode = modeIterator->second;
+		vidmode_t* vidmode = detectedModeNode->object;
 		r_vidModes[ modeIndex ] = vidmode;
 		r_foundVidModes[ foundModeIndex ] = vidmode;
 
@@ -2251,6 +2256,8 @@ void R_InitAvailableVidModes( void ) {
 
 		modeIndex++;
 		foundModeIndex++;
+
+		detectedModeNode = detectedModeMap.GetNext(detectedModeNode);
 	}
 
 	R_InitGuiResolutionVars( modeMap );
